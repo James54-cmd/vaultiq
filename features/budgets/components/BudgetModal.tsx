@@ -5,6 +5,7 @@ import { Pencil, Plus } from "lucide-react";
 import { z } from "zod";
 
 import { budgetPeriods } from "@/features/budgets/constants/budget.constants";
+import { currencyOptions } from "@/features/budgets/constants/currency.constants";
 import { createBudgetFormSchema } from "@/features/budgets/schemas/budget.schema";
 import type { Budget, CreateBudgetFormInput, CreateBudgetInput } from "@/features/budgets/types/Budget";
 import { formatBudgetLabel } from "@/features/budgets/utils/formatBudgetLabel";
@@ -145,118 +146,147 @@ export function BudgetModal({ budget, onSubmit }: BudgetModalProps) {
         </DialogHeader>
 
         <form className="grid gap-4" onSubmit={handleSubmit}>
-          <div className="grid gap-2">
-            <Label htmlFor="category">Category</Label>
-            <Input
-              id="category"
-              value={formState.category}
-              onChange={(event) =>
-                setFormState((current) => ({ ...current, category: event.target.value }))
-              }
-              placeholder="Food, Housing, Utilities"
-            />
-            <FieldError message={fieldErrors.category} />
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="grid gap-2">
-              <Label htmlFor="period">Period</Label>
-              <Select
-                value={formState.period}
-                onValueChange={(value) =>
-                  setFormState((current) => ({
-                    ...current,
-                    period: value as CreateBudgetInput["period"],
-                  }))
-                }
-              >
-                <SelectTrigger id="period">
-                  <SelectValue placeholder="Select period" />
-                </SelectTrigger>
-                <SelectContent>
-                  {budgetPeriods.map((period) => (
-                    <SelectItem key={period} value={period}>
-                      {formatBudgetLabel(period)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FieldError message={fieldErrors.period} />
+          <div className="rounded-lg border border-border/20 bg-muted/10 p-4">
+            <div className="mb-3">
+              <h4 className="text-sm font-semibold text-foreground">Budget Setup</h4>
+              <p className="text-xs text-muted-foreground">Configure your spending limits and tracking period</p>
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="currencyCode">Currency</Label>
-              <Input
-                id="currencyCode"
-                maxLength={3}
-                value={formState.currencyCode}
-                onChange={(event) =>
-                  setFormState((current) => ({
-                    ...current,
-                    currencyCode: event.target.value.toUpperCase(),
-                  }))
-                }
-                placeholder="PHP"
-              />
-              <FieldError message={fieldErrors.currencyCode} />
+            
+            <div className="grid gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="category">Category</Label>
+                <Input
+                  id="category"
+                  value={formState.category}
+                  onChange={(event) =>
+                    setFormState((current) => ({ ...current, category: event.target.value }))
+                  }
+                  placeholder="Food, Housing, Utilities"
+                />
+                <FieldError message={fieldErrors.category} />
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="period">Period</Label>
+                <Select
+                  value={formState.period}
+                  onValueChange={(value) =>
+                    setFormState((current) => ({
+                      ...current,
+                      period: value as CreateBudgetInput["period"],
+                    }))
+                  }
+                >
+                  <SelectTrigger id="period">
+                    <SelectValue placeholder="Select period" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {budgetPeriods.map((period) => (
+                      <SelectItem key={period} value={period}>
+                        {formatBudgetLabel(period)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FieldError message={fieldErrors.period} />
+              </div>
             </div>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="grid gap-2">
-              <Label htmlFor="limitAmount">Limit Amount</Label>
-              <CurrencyInput
-                id="limitAmount"
-                value={formState.limitAmount}
-                onChange={(event) =>
-                  setFormState((current) => ({
-                    ...current,
-                    limitAmount: event.target.value,
-                  }))
-                }
-                currencySymbol={formState.currencyCode === 'PHP' ? '₱' : formState.currencyCode}
-              />
-              <FieldError message={fieldErrors.limitAmount} />
+          <div className="rounded-lg border border-border/20 bg-muted/10 p-4">
+            <div className="mb-3">
+              <h4 className="text-sm font-semibold text-foreground">Financial Details</h4>
+              <p className="text-xs text-muted-foreground">Set your currency and spending limits</p>
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="spentAmount">Spent Amount</Label>
-              <CurrencyInput
-                id="spentAmount"
-                value={formState.spentAmount ?? ""}
-                onChange={(event) =>
-                  setFormState((current) => ({
-                    ...current,
-                    spentAmount: event.target.value,
-                  }))
-                }
-                placeholder="Optional"
-                currencySymbol={formState.currencyCode === 'PHP' ? '₱' : formState.currencyCode}
-              />
-              <FieldError message={fieldErrors.spentAmount} />
+            
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
+              <div className="grid gap-2">
+                <Label htmlFor="currencyCode">Currency</Label>
+                <Select
+                  value={formState.currencyCode}
+                  onValueChange={(value) =>
+                    setFormState((current) => ({
+                      ...current,
+                      currencyCode: value,
+                    }))
+                  }
+                >
+                  <SelectTrigger id="currencyCode" className="min-h-10">
+                    <SelectValue placeholder="Select currency" />
+                  </SelectTrigger>
+                  <SelectContent side="bottom">
+                    {currencyOptions.map((currency) => (
+                      <SelectItem key={currency.value} value={currency.value}>
+                        {currency.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FieldError message={fieldErrors.currencyCode} />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="limitAmount">Limit Amount</Label>
+                <CurrencyInput
+                  id="limitAmount"
+                  value={formState.limitAmount}
+                  onChange={(event) =>
+                    setFormState((current) => ({
+                      ...current,
+                      limitAmount: event.target.value,
+                    }))
+                  }
+                  currencyCode={formState.currencyCode}
+                />
+                <FieldError message={fieldErrors.limitAmount} />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="spentAmount">Spent Amount</Label>
+                <CurrencyInput
+                  id="spentAmount"
+                  value={formState.spentAmount ?? ""}
+                  onChange={(event) =>
+                    setFormState((current) => ({
+                      ...current,
+                      spentAmount: event.target.value,
+                    }))
+                  }
+                  placeholder="Optional"
+                  currencyCode={formState.currencyCode}
+                />
+                <FieldError message={fieldErrors.spentAmount} />
+              </div>
             </div>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="grid gap-2">
-              <Label htmlFor="startsAt">Start Date</Label>
-              <DatePicker
-                value={formState.startsAt}
-                onChange={(value) =>
-                  setFormState((current) => ({ ...current, startsAt: value }))
-                }
-                placeholder="Select start date"
-              />
-              <FieldError message={fieldErrors.startsAt} />
+          <div className="rounded-lg border border-border/20 bg-muted/10 p-4">
+            <div className="mb-3">
+              <h4 className="text-sm font-semibold text-foreground">Duration Settings</h4>
+              <p className="text-xs text-muted-foreground">Define when your budget period starts and ends</p>
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="endsAt">End Date</Label>
-              <DatePicker
-                value={formState.endsAt}
-                onChange={(value) =>
-                  setFormState((current) => ({ ...current, endsAt: value }))
-                }
-                placeholder="Select end date"
-              />
-              <FieldError message={fieldErrors.endsAt} />
+            
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-2">
+                <Label htmlFor="startsAt">Start Date</Label>
+                <DatePicker
+                  value={formState.startsAt}
+                  onChange={(value) =>
+                    setFormState((current) => ({ ...current, startsAt: value }))
+                  }
+                  placeholder="Select start date"
+                />
+                <FieldError message={fieldErrors.startsAt} />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="endsAt">End Date</Label>
+                <DatePicker
+                  value={formState.endsAt}
+                  onChange={(value) =>
+                    setFormState((current) => ({ ...current, endsAt: value }))
+                  }
+                  placeholder="Select end date"
+                />
+                <FieldError message={fieldErrors.endsAt} />
+              </div>
             </div>
           </div>
 
