@@ -80,11 +80,12 @@ export function QuickAddTransactionModal({
         <Button>{triggerLabel}</Button>
       </DialogTrigger>
       <DialogContent
-        className="flex w-full max-w-3xl flex-col overflow-hidden rounded-xl border-border bg-surface-raised p-0 text-foreground"
+        className="flex w-[400px] max-w-2xl flex-col overflow-hidden rounded-xl border border-border bg-surface-raised p-0 text-foreground"
         style={{ maxHeight: "calc(100vh - 32px)" }}
       >
-        <DialogHeader className="sticky top-0 z-10 gap-2 border-b border-border bg-surface-raised px-4 py-4 sm:px-6">
-          <DialogTitle className="pr-10 text-xl font-semibold tracking-tightest text-foreground">
+        {/* Header */}
+        <DialogHeader className="shrink-0 border-b border-border px-6 py-5">
+          <DialogTitle className="text-base font-semibold text-foreground">
             Quick Add Transaction
           </DialogTitle>
           <DialogDescription className="text-sm text-muted">
@@ -126,26 +127,26 @@ export function QuickAddTransactionModal({
             }
           }}
         >
-          <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6">
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
             <div className="space-y-6">
-              <section className="space-y-4">
+
+              <div className="space-y-3">
                 <div>
-                  <p className="text-sm font-semibold text-foreground">Transaction Details</p>
-                  <p className="text-xs text-muted">Set the movement type, amount, and source account.</p>
+                  <p className="text-sm font-medium text-foreground">Transaction Details</p>
+                  <p className="mt-0.5 text-xs text-muted">Set the movement type, amount, and source account.</p>
                 </div>
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  <div className="space-y-2">
-                    <Label htmlFor="transaction-direction">Direction</Label>
+                <hr />
+
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="transaction-direction" className="text-xs text-muted">Direction</Label>
                     <Select
                       value={values.direction}
                       onValueChange={(value) =>
-                        setValues((current) => ({
-                          ...current,
-                          direction: value as CreateManualTransactionFormInput["direction"],
-                        }))
+                        setValues((c) => ({ ...c, direction: value as CreateManualTransactionFormInput["direction"] }))
                       }
                     >
-                      <SelectTrigger id="transaction-direction">
+                      <SelectTrigger id="transaction-direction" className="h-9 text-sm">
                         <SelectValue placeholder="Select direction" />
                       </SelectTrigger>
                       <SelectContent>
@@ -159,67 +160,63 @@ export function QuickAddTransactionModal({
                     <FieldError message={fieldErrors.direction?.[0]} />
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="transaction-amount">Amount</Label>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="transaction-amount" className="text-xs text-muted">Amount</Label>
                     <CurrencyInput
                       id="transaction-amount"
                       value={values.amount}
                       currencyCode={values.currencyCode}
                       onChange={(event) =>
-                        setValues((current) => ({ ...current, amount: event.target.value }))
+                        setValues((c) => ({ ...c, amount: event.target.value }))
                       }
+                      className="h-9 text-sm"
                     />
                     <FieldError message={fieldErrors.amount?.[0]} />
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="transaction-date">Transaction Date</Label>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="transaction-date" className="text-xs text-muted">Transaction Date</Label>
                     <DatePicker
                       value={values.happenedAt}
                       onChange={(value) =>
-                        setValues((current) => ({ ...current, happenedAt: value }))
+                        setValues((c) => ({ ...c, happenedAt: value }))
                       }
+                      className="h-9 text-sm"
                     />
                     <FieldError message={fieldErrors.happenedAt?.[0]} />
                   </div>
+                </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="transaction-bank">Bank</Label>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="transaction-bank" className="text-xs text-muted">Bank</Label>
                     <Select
                       value={values.bankName}
                       onValueChange={(value) =>
-                        setValues((current) => ({
-                          ...current,
-                          bankName: value as CreateManualTransactionFormInput["bankName"],
-                        }))
+                        setValues((c) => ({ ...c, bankName: value as CreateManualTransactionFormInput["bankName"] }))
                       }
                     >
-                      <SelectTrigger id="transaction-bank">
+                      <SelectTrigger id="transaction-bank" className="h-9 text-sm">
                         <SelectValue placeholder="Select bank" />
                       </SelectTrigger>
                       <SelectContent>
                         {supportedBanks.map((bankName) => (
-                          <SelectItem key={bankName} value={bankName}>
-                            {bankName}
-                          </SelectItem>
+                          <SelectItem key={bankName} value={bankName}>{bankName}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                     <FieldError message={fieldErrors.bankName?.[0]} />
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="transaction-category">Category</Label>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="transaction-category" className="text-xs text-muted">Category</Label>
                     <Select
                       value={values.category}
                       onValueChange={(value) =>
-                        setValues((current) => ({
-                          ...current,
-                          category: value as CreateManualTransactionFormInput["category"],
-                        }))
+                        setValues((c) => ({ ...c, category: value as CreateManualTransactionFormInput["category"] }))
                       }
                     >
-                      <SelectTrigger id="transaction-category">
+                      <SelectTrigger id="transaction-category" className="h-9 text-sm">
                         <SelectValue placeholder="Select category" />
                       </SelectTrigger>
                       <SelectContent>
@@ -233,18 +230,15 @@ export function QuickAddTransactionModal({
                     <FieldError message={fieldErrors.category?.[0]} />
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="transaction-status">Status</Label>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="transaction-status" className="text-xs text-muted">Status</Label>
                     <Select
                       value={values.status}
                       onValueChange={(value) =>
-                        setValues((current) => ({
-                          ...current,
-                          status: value as CreateManualTransactionFormInput["status"],
-                        }))
+                        setValues((c) => ({ ...c, status: value as CreateManualTransactionFormInput["status"] }))
                       }
                     >
-                      <SelectTrigger id="transaction-status">
+                      <SelectTrigger id="transaction-status" className="h-9 text-sm">
                         <SelectValue placeholder="Select status" />
                       </SelectTrigger>
                       <SelectContent>
@@ -258,75 +252,83 @@ export function QuickAddTransactionModal({
                     <FieldError message={fieldErrors.status?.[0]} />
                   </div>
                 </div>
-              </section>
+              </div>
 
-              <section className="space-y-4 border-t border-border pt-6">
+              {/* ── Ledger Context ── */}
+              <div className="space-y-3">
                 <div>
-                  <p className="text-sm font-semibold text-foreground">Ledger Context</p>
-                  <p className="text-xs text-muted">Add the merchant, summary, and optional reconciliation notes.</p>
+                  <p className="text-sm font-medium text-foreground">Ledger Context</p>
+                  <p className="mt-0.5 text-xs text-muted">Add the merchant, summary, and optional reconciliation notes.</p>
                 </div>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="transaction-merchant">Merchant</Label>
+                <hr />
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="transaction-merchant" className="text-xs text-muted">Merchant</Label>
                     <Input
                       id="transaction-merchant"
                       value={values.merchant}
                       onChange={(event) =>
-                        setValues((current) => ({ ...current, merchant: event.target.value }))
+                        setValues((c) => ({ ...c, merchant: event.target.value }))
                       }
                       placeholder="Meralco, Grab, Cash Deposit"
+                      className="h-9 text-sm"
                     />
                     <FieldError message={fieldErrors.merchant?.[0]} />
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="transaction-reference">Reference Number</Label>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="transaction-reference" className="text-xs text-muted">Reference Number</Label>
                     <Input
                       id="transaction-reference"
                       value={values.referenceNumber ?? ""}
                       onChange={(event) =>
-                        setValues((current) => ({ ...current, referenceNumber: event.target.value }))
+                        setValues((c) => ({ ...c, referenceNumber: event.target.value }))
                       }
                       placeholder="Optional"
+                      className="h-9 text-sm"
                     />
                     <FieldError message={fieldErrors.referenceNumber?.[0]} />
                   </div>
-
-                  <div className="space-y-2 md:col-span-2">
-                    <Label htmlFor="transaction-description">Description</Label>
-                    <Input
-                      id="transaction-description"
-                      value={values.description}
-                      onChange={(event) =>
-                        setValues((current) => ({ ...current, description: event.target.value }))
-                      }
-                      placeholder="Short summary for the ledger"
-                    />
-                    <FieldError message={fieldErrors.description?.[0]} />
-                  </div>
-
-                  <div className="space-y-2 md:col-span-2">
-                    <Label htmlFor="transaction-notes">Notes</Label>
-                    <Textarea
-                      id="transaction-notes"
-                      value={values.notes ?? ""}
-                      onChange={(event) =>
-                        setValues((current) => ({ ...current, notes: event.target.value }))
-                      }
-                      placeholder="Optional context for future reconciliation"
-                      rows={5}
-                    />
-                    <FieldError message={fieldErrors.notes?.[0]} />
-                  </div>
                 </div>
-              </section>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="transaction-description" className="text-xs text-muted">Description</Label>
+                  <Input
+                    id="transaction-description"
+                    value={values.description}
+                    onChange={(event) =>
+                      setValues((c) => ({ ...c, description: event.target.value }))
+                    }
+                    placeholder="Short summary for the ledger"
+                    className="h-9 text-sm"
+                  />
+                  <FieldError message={fieldErrors.description?.[0]} />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="transaction-notes" className="text-xs text-muted">Notes</Label>
+                  <Textarea
+                    id="transaction-notes"
+                    value={values.notes ?? ""}
+                    onChange={(event) =>
+                      setValues((c) => ({ ...c, notes: event.target.value }))
+                    }
+                    placeholder="Optional context for future reconciliation"
+                    rows={3}
+                    className="w-full resize-none text-sm"
+                  />
+                  <FieldError message={fieldErrors.notes?.[0]} />
+                </div>
+              </div>
+
             </div>
           </div>
 
-          <DialogFooter className="sticky bottom-0 z-10 border-t border-border bg-surface-raised px-4 py-4 sm:px-6">
-            <div className="flex w-full flex-col gap-3">
+          {/* Footer */}
+          <DialogFooter className="shrink-0 border-t border-border px-6 py-4">
+            <div className="flex w-full flex-col gap-3 py-2 sm:flex-row sm:justify-end">
               {formError ? <FieldError message={formError} /> : null}
-              <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+              <div className="flex justify-end gap-2">
                 <Button type="button" variant="secondary" onClick={() => setOpen(false)} disabled={isPending}>
                   Cancel
                 </Button>
