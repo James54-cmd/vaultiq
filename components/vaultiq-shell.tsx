@@ -33,8 +33,8 @@ export function VaultIQShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <div className="flex min-h-screen">
-        <aside className="hidden w-60 shrink-0 border-r border-border bg-background lg:flex lg:flex-col">
+      <div className="min-h-screen">
+        <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 border-r border-border bg-background lg:flex lg:flex-col">
           <div className="flex items-center gap-3 px-6 py-8">
             <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-secondary/20 bg-secondary/10 text-secondary shadow-glow-info">
               <Vault className="h-5 w-5" />
@@ -75,8 +75,8 @@ export function VaultIQShell({ children }: { children: ReactNode }) {
             </div>
           </div>
         </aside>
-        <div className="flex min-h-screen flex-1 flex-col">
-          <main className="dashboard-grid flex-1 pb-24 lg:pb-0">{children}</main>
+        <div className="flex min-h-screen flex-col lg:pl-60">
+          <main className="dashboard-grid min-h-screen flex-1 pb-24 lg:pb-0">{children}</main>
           <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-background/95 backdrop-blur lg:hidden">
             <div className="grid grid-cols-5">
               {navItems.slice(0, 5).map(({ href, label, icon: Icon }) => {
