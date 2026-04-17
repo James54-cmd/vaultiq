@@ -8,6 +8,7 @@ import { SectionHeader } from "@/components/section-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { GmailConnectionCard } from "@/features/gmail/components/GmailConnectionCard";
 import { useGmailConnection } from "@/features/gmail/hooks/useGmailConnection";
 import { GmailSyncSummaryPanel } from "@/features/transactions/components/GmailSyncSummaryPanel";
@@ -73,23 +74,19 @@ export function TransactionDashboard() {
         description="Track logged balance movement, current-month spending, and budget headroom from one place."
         action={
           <div className="flex flex-wrap items-center justify-end gap-2">
-            <div className="flex items-center gap-1 rounded-lg border border-border bg-surface px-1 py-1">
-              {transactionOverviewPeriods.map((option) => (
-                <Button
-                  key={option}
-                  type="button"
-                  variant="ghost"
-                  className={
-                    option === period
-                      ? "bg-accent-muted text-primary hover:bg-accent-muted hover:text-primary"
-                      : "text-muted hover:bg-accent-muted hover:text-foreground"
-                  }
-                  onClick={() => setPeriod(option)}
-                >
-                  {formatOverviewPeriodLabel(option)}
-                </Button>
-              ))}
-            </div>
+            <Tabs value={period} onValueChange={(value) => setPeriod(value as TransactionOverviewPeriod)}>
+              <TabsList className="h-11 rounded-lg border border-border bg-surface p-1">
+                {transactionOverviewPeriods.map((option) => (
+                  <TabsTrigger
+                    key={option}
+                    value={option}
+                    className="rounded-md px-3 text-sm text-muted data-[state=active]:bg-accent-muted data-[state=active]:text-primary data-[state=active]:shadow-none"
+                  >
+                    {formatOverviewPeriodLabel(option)}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </Tabs>
             <QuickAddTransactionModal
               onSubmit={async (input) => {
                 await createTransaction(input);
