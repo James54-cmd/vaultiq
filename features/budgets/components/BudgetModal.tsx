@@ -10,6 +10,7 @@ import type { Budget, CreateBudgetFormInput, CreateBudgetInput } from "@/feature
 import { formatBudgetLabel } from "@/features/budgets/utils/formatBudgetLabel";
 import { ApiValidationError } from "@/lib/api-errors";
 import { Button } from "@/components/ui/button";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { DatePicker } from "@/components/ui/date-picker";
 import {
   Dialog,
@@ -203,11 +204,8 @@ export function BudgetModal({ budget, onSubmit }: BudgetModalProps) {
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-2">
               <Label htmlFor="limitAmount">Limit Amount</Label>
-              <Input
+              <CurrencyInput
                 id="limitAmount"
-                type="number"
-                min="0"
-                step="0.01"
                 value={formState.limitAmount}
                 onChange={(event) =>
                   setFormState((current) => ({
@@ -215,16 +213,14 @@ export function BudgetModal({ budget, onSubmit }: BudgetModalProps) {
                     limitAmount: event.target.value,
                   }))
                 }
+                currencySymbol={formState.currencyCode === 'PHP' ? '₱' : formState.currencyCode}
               />
               <FieldError message={fieldErrors.limitAmount} />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="spentAmount">Spent Amount</Label>
-              <Input
+              <CurrencyInput
                 id="spentAmount"
-                type="number"
-                min="0"
-                step="0.01"
                 value={formState.spentAmount ?? ""}
                 onChange={(event) =>
                   setFormState((current) => ({
@@ -233,6 +229,7 @@ export function BudgetModal({ budget, onSubmit }: BudgetModalProps) {
                   }))
                 }
                 placeholder="Optional"
+                currencySymbol={formState.currencyCode === 'PHP' ? '₱' : formState.currencyCode}
               />
               <FieldError message={fieldErrors.spentAmount} />
             </div>
