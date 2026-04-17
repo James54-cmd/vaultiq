@@ -1,0 +1,67 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+@font-face {
+  font-family: "Geist";
+  src: local("Geist");
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Geist Mono";
+  src: local("Geist Mono");
+  font-display: swap;
+}
+
+* {
+  border-color: theme("colors.border");
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-background font-sans text-foreground antialiased;
+  background-image:
+    radial-gradient(circle at top, rgba(56, 189, 248, 0.08), transparent 28%),
+    radial-gradient(circle at right top, rgba(74, 222, 128, 0.08), transparent 24%);
+}
+
+main {
+  @apply min-h-screen;
+}
+
+.dashboard-grid {
+  background-image: theme("backgroundImage.grid");
+  background-size: 48px 48px;
+}
+
+.financial-figure {
+  @apply tabular-nums;
+  font-variant-numeric: tabular-nums;
+}
+
+.glass-line {
+  @apply border border-border bg-surface/90 backdrop-blur;
+}
+
+.shimmer {
+  background-image: linear-gradient(
+    90deg,
+    rgba(26, 48, 69, 0.35) 0%,
+    rgba(56, 189, 248, 0.12) 50%,
+    rgba(26, 48, 69, 0.35) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2s linear infinite;
+}
+
+.text-balance {
+  text-wrap: balance;
+}

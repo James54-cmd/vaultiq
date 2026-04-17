@@ -1,0 +1,35 @@
+import { cn } from "@/lib/utils";
+
+type BankAvatarProps = {
+  name: string;
+  initials: string;
+  tone?: "primary" | "secondary" | "warning" | "error";
+  className?: string;
+};
+
+const toneClasses = {
+  primary: "border-primary/20 bg-primary/10 text-primary",
+  secondary: "border-secondary/20 bg-secondary/10 text-secondary",
+  warning: "border-warning/20 bg-warning/10 text-warning",
+  error: "border-error/20 bg-error/10 text-error",
+};
+
+export function BankAvatar({
+  name,
+  initials,
+  tone = "secondary",
+  className,
+}: BankAvatarProps) {
+  return (
+    <div
+      aria-label={name}
+      className={cn(
+        "flex h-9 w-9 items-center justify-center rounded-full border text-xs font-semibold shadow-subtle",
+        toneClasses[tone],
+        className
+      )}
+    >
+      {initials}
+    </div>
+  );
+}
