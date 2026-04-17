@@ -2,8 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   BarChart3,
   CircleDollarSign,
@@ -12,11 +12,15 @@ import {
   LayoutDashboard,
   PiggyBank,
   Settings,
+  LogOut,
 } from "lucide-react";
 
 import vaultLogoWithText from "@/app/public/assets/logo/vault-logo-with-text.png";
 import { Badge } from "@/components/ui/badge";
 import { BankAvatar } from "@/components/bank-avatar";
+import { Button } from "@/components/ui/button";
+import { signOutRequest } from "@/features/auth/services/auth-api.service";
+import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -31,6 +35,44 @@ const navItems = [
 
 export function VaultIQShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const [userName, setUserName] = useState("VaultIQ User");
+  const [userInitials, setUserInitials] = useState("VQ");
+  const [userEmail, setUserEmail] = useState("Secure workspace");
+  const [isSigningOut, setIsSigningOut] = useState(false);
+
+  useEffect(() => {
+    const supabase = getSupabaseBrowserClient();
+
+    const hydrateUser = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user?.email) {
+        return;
+      }
+
+      const fullName =
+        typeof user.user_metadata?.full_name === "string" && user.user_metadata.full_name.trim().length > 0
+          ? user.user_metadata.full_name
+          : user.email.split("@")[0];
+
+      const initials = fullName
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part.charAt(0).toUpperCase())
+        .join("")
+        .slice(0, 2);
+
+      setUserName(fullName);
+      setUserInitials(initials || "VQ");
+      setUserEmail(user.email);
+    };
+
+    hydrateUser();
+  }, []);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -67,13 +109,34 @@ export function VaultIQShell({ children }: { children: ReactNode }) {
             })}
           </nav>
           <div className="border-t border-border p-4">
-            <div className="flex items-center gap-3 rounded-lg bg-surface-raised p-4">
-              <BankAvatar name="James Damaso" initials="JD" tone="primary" />
-              <div className="flex-1">
-                <p className="text-sm font-medium">James Damaso</p>
-                <p className="text-xs text-muted">Treasury Lead</p>
+            <div className="space-y-3 rounded-lg bg-surface-raised p-4">
+              <div className="flex items-center gap-3">
+                <BankAvatar name={userName} initials={userInitials} tone="primary" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium">{userName}</p>
+                  <p className="text-xs text-muted">{userEmail}</p>
+                </div>
+                <Badge variant="success">Pro</Badge>
               </div>
-              <Badge variant="success">Pro</Badge>
+              <Button
+                type="button"
+                variant="secondary"
+                className="w-full justify-center"
+                disabled={isSigningOut}
+                onClick={async () => {
+                  setIsSigningOut(true);
+                  try {
+                    await signOutRequest();
+                    router.push("/login");
+                    router.refresh();
+                  } finally {
+                    setIsSigningOut(false);
+                  }
+                }}
+              >
+                <LogOut className="h-4 w-4" />
+                {isSigningOut ? "Signing Out..." : "Sign Out"}
+              </Button>
             </div>
           </div>
         </aside>
@@ -90,7 +153,7 @@ export function VaultIQShell({ children }: { children: ReactNode }) {
               </Link>
               <div className="flex items-center gap-2">
                 <Badge variant="success">Pro</Badge>
-                <BankAvatar name="James Damaso" initials="JD" tone="primary" className="h-8 w-8" />
+                <BankAvatar name={userName} initials={userInitials} tone="primary" className="h-8 w-8" />
               </div>
             </div>
           </header>
