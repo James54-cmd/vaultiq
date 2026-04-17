@@ -64,31 +64,37 @@ export function BudgetsView() {
       />
 
       {summary ? (
-        <div className="grid gap-4 md:grid-cols-3">
-          <Card>
-            <CardContent className="space-y-2 px-6 py-5">
-              <p className="text-sm text-muted">Budgeted</p>
-              <p className="financial-figure text-xl font-semibold text-foreground">
-                {formatCurrency(summary.totalLimitAmount)}
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="space-y-2 px-6 py-5">
-              <p className="text-sm text-muted">Spent</p>
-              <p className="financial-figure text-xl font-semibold text-foreground">
-                {formatCurrency(summary.totalSpentAmount)}
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="space-y-2 px-6 py-5">
-              <p className="text-sm text-muted">Utilization</p>
-              <p className="financial-figure text-xl font-semibold text-foreground">
-                {summary.utilizationRate.toFixed(2)}%
-              </p>
-            </CardContent>
-          </Card>
+        <div className="-mx-4 flex gap-4 overflow-x-auto pb-2 md:mx-0 md:grid md:grid-cols-3 md:gap-4 md:overflow-visible md:pb-0">
+          <div className="min-w-[80vw] max-w-[90vw] flex-shrink-0 md:min-w-0 md:max-w-full">
+            <Card>
+              <CardContent className="space-y-2 px-6 py-5">
+                <p className="text-sm text-muted">Budgeted</p>
+                <p className="financial-figure text-xl font-semibold text-foreground">
+                  {formatCurrency(summary.totalLimitAmount)}
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+          <div className="min-w-[80vw] max-w-[90vw] flex-shrink-0 md:min-w-0 md:max-w-full">
+            <Card>
+              <CardContent className="space-y-2 px-6 py-5">
+                <p className="text-sm text-muted">Spent</p>
+                <p className="financial-figure text-xl font-semibold text-foreground">
+                  {formatCurrency(summary.totalSpentAmount)}
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+          <div className="min-w-[80vw] max-w-[90vw] flex-shrink-0 md:min-w-0 md:max-w-full">
+            <Card>
+              <CardContent className="space-y-2 px-6 py-5">
+                <p className="text-sm text-muted">Utilization</p>
+                <p className="financial-figure text-xl font-semibold text-foreground">
+                  {summary.utilizationRate.toFixed(2)}%
+                </p>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       ) : null}
 
