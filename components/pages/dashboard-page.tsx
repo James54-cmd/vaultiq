@@ -51,9 +51,9 @@ export function DashboardPage() {
         title="Multi-bank financial visibility at a glance"
         description="Monitor balances, liabilities, cash flow, and category behavior across every connected bank and e-wallet."
         action={
-          <div className="flex gap-3">
-            <Button variant="secondary">Export Snapshot</Button>
-            <Button>Connect Account</Button>
+          <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
+            <Button variant="secondary" className="w-full sm:w-auto">Export Snapshot</Button>
+            <Button className="w-full sm:w-auto">Connect Account</Button>
           </div>
         }
       />
@@ -167,12 +167,12 @@ export function DashboardPage() {
 
       <div className="grid gap-6 xl:grid-cols-2">
         <Card>
-          <CardHeader className="flex-row items-center justify-between">
+          <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <CardTitle>All Banks Overview</CardTitle>
               <p className="text-sm text-muted">Status, type, and live balance by institution</p>
             </div>
-            <Button variant="secondary">Manage Banks</Button>
+            <Button variant="secondary" className="self-start sm:self-auto">Manage Banks</Button>
           </CardHeader>
           <CardContent className="space-y-3">
             {accounts.slice(0, 5).map((account) => (
@@ -273,69 +273,119 @@ export function DashboardPage() {
       </div>
 
       <Card>
-        <CardHeader className="flex-row items-center justify-between">
+        <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <CardTitle>Recent Transactions</CardTitle>
             <p className="text-sm text-muted">Latest 10 transactions across all banks</p>
           </div>
-          <Button variant="secondary">Open Transactions</Button>
+          <Button variant="secondary" className="self-start sm:self-auto">Open Transactions</Button>
         </CardHeader>
-        <CardContent className="overflow-x-auto">
-          <table className="min-w-full text-left">
-            <thead className="bg-background/70 text-2xs uppercase tracking-widest text-muted">
-              <tr>
-                {["Date", "Bank", "Description", "Category", "Amount", "Status"].map((head) => (
-                  <th key={head} className="px-4 py-3 font-medium">
-                    {head}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {transactions.map((transaction) => (
-                <tr
-                  key={transaction.id}
-                  className="border-b border-border text-sm transition hover:bg-accent-muted"
-                >
-                  <td className="px-4 py-4 text-muted">{transaction.date}</td>
-                  <td className="px-4 py-4">
-                    <div className="flex items-center gap-3">
-                      <BankAvatar name={transaction.bank} initials={transaction.initials} />
-                      <span>{transaction.bank}</span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-4">
-                    <div>
-                      <p className="font-medium text-foreground">{transaction.merchant}</p>
-                      <p className="text-xs text-muted">{transaction.description}</p>
-                    </div>
-                  </td>
-                  <td className="px-4 py-4 text-muted">{transaction.category}</td>
-                  <td
-                    className={cn(
-                      "financial-figure px-4 py-4 font-semibold",
-                      transaction.amount >= 0 ? "text-primary" : "text-error"
-                    )}
-                  >
-                    {formatCurrency(transaction.amount)}
-                  </td>
-                  <td className="px-4 py-4">
-                    <Badge
-                      variant={
-                        transaction.status === "completed"
-                          ? "success"
-                          : transaction.status === "pending"
-                            ? "warning"
-                            : "error"
-                      }
+        <CardContent>
+          <div className="border-strong overflow-hidden rounded-lg border md:rounded-xl">
+            <div className="overflow-x-auto rounded-t-lg md:rounded-t-xl">
+              <div className="md:min-w-[700px]">
+                <div className="bg-background/70 text-2xs uppercase tracking-widest text-muted hidden rounded-t-lg border-b px-3 py-3 font-medium md:grid md:grid-cols-[minmax(80px,0.8fr)_minmax(120px,1.2fr)_minmax(140px,1.4fr)_minmax(100px,1fr)_minmax(100px,1fr)_minmax(80px,0.8fr)] md:items-center md:gap-3 md:rounded-t-xl md:px-4 lg:gap-4 lg:px-6 lg:py-4 lg:text-sm">
+                  <div className="text-left whitespace-nowrap">Date</div>
+                  <div className="text-left whitespace-nowrap">Bank</div>
+                  <div className="text-left whitespace-nowrap">Description</div>
+                  <div className="text-left whitespace-nowrap">Category</div>
+                  <div className="text-left whitespace-nowrap">Amount</div>
+                  <div className="text-left whitespace-nowrap">Status</div>
+                </div>
+
+                <div className="scrollbar-hide max-h-[400px] divide-y divide-gray-200 overflow-y-auto">
+                  {transactions.map((transaction) => (
+                    <div
+                      key={transaction.id}
+                      className="cursor-pointer items-center border-b border-gray-200 px-4 py-3 hover:bg-accent-muted md:grid md:grid-cols-[minmax(80px,0.8fr)_minmax(120px,1.2fr)_minmax(140px,1.4fr)_minmax(100px,1fr)_minmax(100px,1fr)_minmax(80px,0.8fr)] md:gap-3 md:border-0 md:px-4 md:py-4 lg:gap-4 lg:px-6"
                     >
-                      {transaction.status}
-                    </Badge>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                      {/* Mobile Layout */}
+                      <div className="flex flex-col gap-3 rounded-lg border border-border/50 bg-surface/50 p-3 md:hidden md:border-0 md:bg-transparent md:p-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="text-xs font-medium text-muted">{transaction.date}</div>
+                          <Badge
+                            variant={
+                              transaction.status === "completed"
+                                ? "success"
+                                : transaction.status === "pending"
+                                  ? "warning"
+                                  : "error"
+                            }
+                          >
+                            {transaction.status}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <BankAvatar name={transaction.bank} initials={transaction.initials} />
+                          <div className="min-w-0 flex-1 overflow-hidden">
+                            <div className="truncate text-sm font-semibold text-foreground">
+                              {transaction.merchant}
+                            </div>
+                            <div className="truncate text-xs text-muted">
+                              {transaction.bank} • {transaction.description}
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className={cn(
+                              "financial-figure text-base font-bold",
+                              transaction.amount >= 0 ? "text-primary" : "text-error"
+                            )}>
+                              {formatCurrency(transaction.amount)}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-start">
+                          <Badge variant="default" className="text-xs">{transaction.category}</Badge>
+                        </div>
+                      </div>
+
+                      {/* Desktop Layout */}
+                      <>
+                        <div className="hidden text-left text-sm text-muted md:block">
+                          {transaction.date}
+                        </div>
+
+                        <div className="hidden min-w-0 items-center gap-3 md:flex">
+                          <BankAvatar name={transaction.bank} initials={transaction.initials} />
+                          <span className="truncate text-sm text-foreground">{transaction.bank}</span>
+                        </div>
+
+                        <div className="hidden text-left md:block">
+                          <div className="text-sm font-medium text-foreground">{transaction.merchant}</div>
+                          <div className="text-xs text-muted">{transaction.description}</div>
+                        </div>
+
+                        <div className="hidden text-left text-sm text-muted md:block">
+                          {transaction.category}
+                        </div>
+
+                        <div className={cn(
+                          "hidden financial-figure text-left text-sm font-semibold md:block",
+                          transaction.amount >= 0 ? "text-primary" : "text-error"
+                        )}>
+                          {formatCurrency(transaction.amount)}
+                        </div>
+
+                        <div className="hidden text-left md:block">
+                          <Badge
+                            variant={
+                              transaction.status === "completed"
+                                ? "success"
+                                : transaction.status === "pending"
+                                  ? "warning"
+                                  : "error"
+                            }
+                          >
+                            {transaction.status}
+                          </Badge>
+                        </div>
+                      </>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>
