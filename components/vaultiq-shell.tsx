@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
@@ -11,9 +12,9 @@ import {
   LayoutDashboard,
   PiggyBank,
   Settings,
-  Vault,
 } from "lucide-react";
 
+import vaultLogoWithText from "@/app/public/assets/logo/vault-logo-with-text.png";
 import { Badge } from "@/components/ui/badge";
 import { BankAvatar } from "@/components/bank-avatar";
 import { cn } from "@/lib/utils";
@@ -35,14 +36,15 @@ export function VaultIQShell({ children }: { children: ReactNode }) {
     <div className="min-h-screen bg-background text-foreground">
       <div className="min-h-screen">
         <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 border-r border-border bg-background lg:flex lg:flex-col">
-          <div className="flex items-center gap-3 px-6 py-8">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-secondary/20 bg-secondary/10 text-secondary shadow-glow-info">
-              <Vault className="h-5 w-5" />
-            </div>
-            <div>
-              <div className="text-lg font-bold tracking-tightest">VaultIQ</div>
-              <div className="text-xs text-muted">Every peso. Every account. One view.</div>
-            </div>
+          <div className="px-6 py-8">
+            <Link href="/" className="block w-fit">
+              <Image
+                src={vaultLogoWithText}
+                alt="VaultIQ"
+                priority
+                className="h-auto w-36"
+              />
+            </Link>
           </div>
           <nav className="flex-1 space-y-1 px-4">
             {navItems.map(({ href, label, icon: Icon }) => {
@@ -76,6 +78,22 @@ export function VaultIQShell({ children }: { children: ReactNode }) {
           </div>
         </aside>
         <div className="flex min-h-screen flex-col lg:pl-60">
+          <header className="sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur lg:hidden">
+            <div className="flex items-center justify-between px-4 py-3">
+              <Link href="/" className="block">
+                <Image
+                  src={vaultLogoWithText}
+                  alt="VaultIQ"
+                  priority
+                  className="h-auto w-28"
+                />
+              </Link>
+              <div className="flex items-center gap-2">
+                <Badge variant="success">Pro</Badge>
+                <BankAvatar name="James Damaso" initials="JD" tone="primary" className="h-8 w-8" />
+              </div>
+            </div>
+          </header>
           <main className="dashboard-grid min-h-screen flex-1 pb-24 lg:pb-0">{children}</main>
           <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-background/95 backdrop-blur lg:hidden">
             <div className="grid grid-cols-5">
