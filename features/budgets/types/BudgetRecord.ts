@@ -37,3 +37,7 @@ export type UpdateBudgetRpcParams = {
   p_status?: "active" | "archived";
   p_notes?: string | null;
 };
+
+export type DeleteBudgetRpcParams = {
+  p_id: string;
+};

@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { Plus } from "lucide-react";
+import { Pencil, Plus } from "lucide-react";
 import { z } from "zod";
 
 import { budgetPeriods } from "@/features/budgets/constants/budget.constants";
 import { createBudgetFormSchema } from "@/features/budgets/schemas/budget.schema";
-import type { CreateBudgetFormInput, CreateBudgetInput } from "@/features/budgets/types/Budget";
+import type { Budget, CreateBudgetFormInput, CreateBudgetInput } from "@/features/budgets/types/Budget";
 import { formatBudgetLabel } from "@/features/budgets/utils/formatBudgetLabel";
 import { ApiValidationError } from "@/lib/api-errors";
 import { Button } from "@/components/ui/button";
@@ -32,7 +32,8 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 
 type BudgetModalProps = {
-  onCreate: (input: CreateBudgetInput) => Promise<void>;
+  budget?: Budget;
+  onSubmit: (input: CreateBudgetInput) => Promise<void>;
 };
 
 const initialFormState: CreateBudgetFormInput = {
@@ -46,12 +47,29 @@ const initialFormState: CreateBudgetFormInput = {
   notes: "",
 };
 
-export function BudgetModal({ onCreate }: BudgetModalProps) {
+function toFormState(budget?: Budget): CreateBudgetFormInput {
+  if (!budget) {
+    return initialFormState;
+  }
+
+  return {
+    category: budget.category,
+    period: budget.period,
+    limitAmount: budget.limitAmount.toFixed(2),
+    spentAmount: budget.spentAmount.toFixed(2),
+    currencyCode: budget.currencyCode,
+    startsAt: budget.startsAt,
+    endsAt: budget.endsAt,
+    notes: budget.notes ?? "",
+  };
+}
+
+export function BudgetModal({ budget, onSubmit }: BudgetModalProps) {
   const [open, setOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const [formState, setFormState] = useState<CreateBudgetFormInput>(initialFormState);
+  const [formState, setFormState] = useState<CreateBudgetFormInput>(toFormState(budget));
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -61,7 +79,7 @@ export function BudgetModal({ onCreate }: BudgetModalProps) {
       setError(null);
       setFieldErrors({});
       const payload = createBudgetFormSchema.parse(formState);
-      await onCreate(payload);
+      await onSubmit(payload);
       setFormState(initialFormState);
       setOpen(false);
     } catch (submitError) {
@@ -91,18 +109,36 @@ export function BudgetModal({ onCreate }: BudgetModalProps) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        setOpen(nextOpen);
+        if (nextOpen) {
+          setFormState(toFormState(budget));
+          setError(null);
+          setFieldErrors({});
+        }
+      }}
+    >
       <DialogTrigger asChild>
-        <Button>
-          <Plus className="mr-2 h-4 w-4" />
-          Add Budget
-        </Button>
+        {budget ? (
+          <Button variant="secondary">
+            <Pencil className="mr-2 h-4 w-4" />
+            Edit
+          </Button>
+        ) : (
+          <Button>
+            <Plus className="mr-2 h-4 w-4" />
+            Add Budget
+          </Button>
+        )}
+        
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Create Budget</DialogTitle>
+          <DialogTitle>{budget ? "Update Budget" : "Create Budget"}</DialogTitle>
           <DialogDescription>
-            Validate the budget locally with Zod before it reaches the API or future RPC layer.
+            Validate the budget locally with Zod before it reaches the API or RPC layer.
           </DialogDescription>
         </DialogHeader>
 
@@ -250,7 +286,7 @@ export function BudgetModal({ onCreate }: BudgetModalProps) {
               Cancel
             </Button>
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Saving..." : "Save Budget"}
+              {isSubmitting ? "Saving..." : budget ? "Update Budget" : "Save Budget"}
             </Button>
           </div>
         </form>

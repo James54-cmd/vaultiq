@@ -13,6 +13,7 @@ import type {
 import type {
   BudgetRecord,
   CreateBudgetRpcParams,
+  DeleteBudgetRpcParams,
   UpdateBudgetRpcParams,
 } from "@/features/budgets/types/BudgetRecord";
 import { mapBudgetRecord } from "@/features/budgets/utils/mapBudgetRecord";
@@ -109,4 +110,23 @@ export async function updateBudget(id: string, input: unknown): Promise<Budget |
   }
 
   return mapBudgetRecord(data as BudgetRecord);
+}
+
+export async function deleteBudget(id: string): Promise<boolean> {
+  const supabase = getSupabaseServerClient();
+
+  const rpcPayload: DeleteBudgetRpcParams = {
+    p_id: id,
+  };
+
+  const { data, error } = await supabase.rpc("delete_budget", rpcPayload);
+  if (error) {
+    if (error.message.toLowerCase().includes("not found")) {
+      return false;
+    }
+
+    throw new Error(error.message);
+  }
+
+  return Boolean(data);
 }

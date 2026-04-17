@@ -183,3 +183,25 @@ begin
   return updated_budget;
 end;
 $$;
+
+create or replace function public.delete_budget(
+  p_id uuid
+)
+returns boolean
+language plpgsql
+as $$
+declare
+  deleted_count integer;
+begin
+  delete from public.budgets
+  where id = p_id;
+
+  get diagnostics deleted_count = row_count;
+
+  if deleted_count = 0 then
+    raise exception 'Budget not found';
+  end if;
+
+  return true;
+end;
+$$;

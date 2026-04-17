@@ -3,6 +3,7 @@ import type {
   BudgetApiListResponse,
   BudgetQuery,
   CreateBudgetInput,
+  UpdateBudgetInput,
 } from "@/features/budgets/types/Budget";
 import { ApiValidationError } from "@/lib/api-errors";
 import type { ApiErrorResponse, ApiSuccessResponse } from "@/types/api";
@@ -86,4 +87,33 @@ export async function createBudgetRequest(input: CreateBudgetInput): Promise<Bud
 
   const payload = (await response.json()) as ApiSuccessResponse<Budget>;
   return payload.data;
+}
+
+export async function updateBudgetRequest(id: string, input: UpdateBudgetInput): Promise<Budget> {
+  const response = await fetch(`/api/budgets/${id}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(input),
+  });
+
+  if (!response.ok) {
+    const error = (await response.json()) as ApiErrorResponse;
+    throw new ApiValidationError(extractApiErrorMessage(error), extractApiValidationDetails(error));
+  }
+
+  const payload = (await response.json()) as ApiSuccessResponse<Budget>;
+  return payload.data;
+}
+
+export async function deleteBudgetRequest(id: string): Promise<void> {
+  const response = await fetch(`/api/budgets/${id}`, {
+    method: "DELETE",
+  });
+
+  if (!response.ok) {
+    const error = (await response.json()) as ApiErrorResponse;
+    throw new ApiValidationError(extractApiErrorMessage(error), extractApiValidationDetails(error));
+  }
 }

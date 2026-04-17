@@ -1,7 +1,10 @@
 "use client";
 
+import { Trash2 } from "lucide-react";
+
 import { SectionHeader } from "@/components/section-header";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Select,
@@ -29,7 +32,7 @@ function getVariant(percent: number): "success" | "warning" | "error" {
 }
 
 export function BudgetsView() {
-  const { budgets, summary, period, error, isPending, setPeriod, createBudget } = useBudgets();
+  const { budgets, summary, period, error, isPending, setPeriod, createBudget, updateBudget, deleteBudget } = useBudgets();
 
   return (
     <div className="space-y-6 p-4 md:p-6 xl:p-8">
@@ -52,7 +55,7 @@ export function BudgetsView() {
                 <SelectItem value="yearly">{formatBudgetLabel("yearly")}</SelectItem>
               </SelectContent>
             </Select>
-            <BudgetModal onCreate={createBudget} />
+            <BudgetModal onSubmit={createBudget} />
           </div>
         }
       />
@@ -103,7 +106,25 @@ export function BudgetsView() {
                         <p className="text-lg font-semibold text-foreground">{item.category}</p>
                         <p className="text-sm text-muted">Live category allocation</p>
                       </div>
-                      <Badge variant={getVariant(percent)}>{percent.toFixed(2)}%</Badge>
+                      <div className="flex items-center gap-2">
+                        <Badge variant={getVariant(percent)}>{percent.toFixed(2)}%</Badge>
+                        <BudgetModal
+                          budget={item}
+                          onSubmit={(input) => updateBudget(item.id, input)}
+                        />
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          className="px-3"
+                          onClick={async () => {
+                            if (window.confirm(`Delete ${item.category} budget?`)) {
+                              await deleteBudget(item.id);
+                            }
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                     <div className="space-y-2">
                       <div className="flex items-center justify-between text-sm">

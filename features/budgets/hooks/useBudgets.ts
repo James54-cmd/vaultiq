@@ -5,12 +5,15 @@ import { useEffect, useState, useTransition } from "react";
 import { budgetPeriodSchema, createBudgetSchema } from "@/features/budgets/schemas/budget.schema";
 import {
   createBudgetRequest,
+  deleteBudgetRequest,
   fetchBudgets,
+  updateBudgetRequest,
 } from "@/features/budgets/services/budget-api.service";
 import type {
   Budget,
   BudgetSummary,
   CreateBudgetInput,
+  UpdateBudgetInput,
 } from "@/features/budgets/types/Budget";
 
 export function useBudgets() {
@@ -43,6 +46,16 @@ export function useBudgets() {
     loadBudgets(period);
   };
 
+  const updateBudget = async (id: string, input: UpdateBudgetInput) => {
+    await updateBudgetRequest(id, input);
+    loadBudgets(period);
+  };
+
+  const deleteBudget = async (id: string) => {
+    await deleteBudgetRequest(id);
+    loadBudgets(period);
+  };
+
   return {
     budgets,
     summary,
@@ -51,5 +64,7 @@ export function useBudgets() {
     error,
     setPeriod: (value: string) => setPeriod(budgetPeriodSchema.parse(value)),
     createBudget,
+    updateBudget,
+    deleteBudget,
   };
 }
