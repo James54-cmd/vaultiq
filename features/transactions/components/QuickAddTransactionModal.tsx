@@ -79,10 +79,9 @@ export function QuickAddTransactionModal({
       <DialogTrigger asChild>
         <Button>{triggerLabel}</Button>
       </DialogTrigger>
-      <DialogContent
-        className="flex w-[400px] max-w-2xl flex-col overflow-hidden rounded-xl border border-border bg-surface-raised p-0 text-foreground"
-        style={{ maxHeight: "calc(100vh - 32px)" }}
-      >
+        <DialogContent
+          className="flex h-[calc(100vh-32px)] w-3xl max-w-3xl flex-col overflow-hidden rounded-xl border border-border bg-surface-raised p-0 text-foreground"
+        >
         {/* Header */}
         <DialogHeader className="shrink-0 border-b border-border px-6 py-5">
           <DialogTitle className="text-base font-semibold text-foreground">
@@ -130,6 +129,7 @@ export function QuickAddTransactionModal({
           <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
             <div className="space-y-6">
 
+              {/* ── Transaction Details ── */}
               <div className="space-y-3">
                 <div>
                   <p className="text-sm font-medium text-foreground">Transaction Details</p>
