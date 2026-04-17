@@ -6,6 +6,8 @@ import type {
   gmailSyncSchema,
   transactionCategorySchema,
   transactionDirectionSchema,
+  transactionOverviewPeriodSchema,
+  transactionOverviewQuerySchema,
   transactionQuerySchema,
   transactionSchema,
   transactionSourceSchema,
@@ -24,6 +26,8 @@ export type TransactionSource = z.infer<typeof transactionSourceSchema>;
 export type TransactionStatus = z.infer<typeof transactionStatusSchema>;
 export type TransactionCategory = z.infer<typeof transactionCategorySchema>;
 export type TransactionQuery = z.infer<typeof transactionQuerySchema>;
+export type TransactionOverviewPeriod = z.infer<typeof transactionOverviewPeriodSchema>;
+export type TransactionOverviewQuery = z.infer<typeof transactionOverviewQuerySchema>;
 export type CreateManualTransactionInput = z.infer<typeof createManualTransactionSchema>;
 export type CreateManualTransactionFormInput = z.input<typeof createManualTransactionFormSchema>;
 export type GmailSyncInput = z.infer<typeof gmailSyncSchema>;
@@ -34,17 +38,28 @@ export type TransactionListSummary = {
   expenseAmount: number;
 };
 
+export type TransactionListPagination = {
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+};
+
 export type TransactionListResponse = {
   transactions: Transaction[];
   summary: TransactionListSummary;
+  pagination: TransactionListPagination;
 };
 
 export type TransactionOverview = {
+  period: TransactionOverviewPeriod;
   totalBalance: number;
-  monthlySpending: number;
+  periodSpending: number;
   remainingBudget: number;
-  monthlyIncome: number;
-  monthlyExpense: number;
+  periodIncome: number;
+  periodExpense: number;
   budgetLimit: number;
   categorySpend: Array<{
     name: string;

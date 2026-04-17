@@ -2,9 +2,10 @@
 
 import { BankAvatar } from "@/components/bank-avatar";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { Transaction } from "@/features/transactions/types/Transaction";
+import type { Transaction, TransactionListPagination } from "@/features/transactions/types/Transaction";
 import { formatDatePickerLabel } from "@/lib/date";
 import { formatCurrency } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -14,6 +15,8 @@ type TransactionTableProps = {
   description: string;
   transactions: Transaction[];
   isPending?: boolean;
+  pagination?: TransactionListPagination | null;
+  onPageChange?: (page: number) => void;
 };
 
 const desktopTransactionTableColumns =
@@ -30,7 +33,18 @@ export function TransactionTable({
   description,
   transactions,
   isPending = false,
+  pagination,
+  onPageChange,
 }: TransactionTableProps) {
+  const pageStart = pagination
+    ? pagination.totalCount === 0
+      ? 0
+      : (pagination.page - 1) * pagination.pageSize + 1
+    : 0;
+  const pageEnd = pagination
+    ? Math.min(pagination.page * pagination.pageSize, pagination.totalCount)
+    : 0;
+
   return (
     <Card className="border-border bg-surface">
       <CardHeader>
@@ -205,6 +219,40 @@ export function TransactionTable({
               </div>
             </div>
           </div>
+          {pagination && onPageChange ? (
+            <div
+              data-tutorial="pagination"
+              className="flex flex-col items-center justify-between gap-3 border-t border-border px-4 py-3 text-xs font-medium text-muted md:flex-row md:px-6 md:py-3 md:text-sm"
+            >
+              <span className="text-center md:text-left">
+                Showing {pageStart.toFixed(0)}-{pageEnd.toFixed(0)} of {pagination.totalCount.toFixed(0)} transaction
+                {pagination.totalCount === 1 ? "" : "s"}
+              </span>
+              <div className="flex w-full items-center justify-center gap-2 md:w-auto md:gap-3">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="h-9 flex-1 justify-center rounded-md border border-border bg-transparent px-3 font-semibold text-foreground hover:bg-accent-muted hover:text-foreground md:h-10 md:flex-initial md:px-4"
+                  onClick={() => onPageChange(pagination.page - 1)}
+                  disabled={!pagination.hasPreviousPage || isPending}
+                >
+                  Previous
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="h-9 flex-1 justify-center rounded-md border border-border bg-transparent px-3 font-semibold text-foreground hover:bg-accent-muted hover:text-foreground md:h-10 md:flex-initial md:px-4"
+                  onClick={() => onPageChange(pagination.page + 1)}
+                  disabled={!pagination.hasNextPage || isPending}
+                >
+                  Next
+                </Button>
+              </div>
+              <span className="text-center md:text-right">
+                Page {pagination.page} of {pagination.totalPages}
+              </span>
+            </div>
+          ) : null}
         </div>
       </CardContent>
     </Card>

@@ -1,6 +1,9 @@
 import "server-only";
 
 const GMAIL_API_BASE_URL = "https://gmail.googleapis.com/gmail/v1/users/me";
+const gmailApiTimeoutMs = 15_000;
+const gmailApiMaxAttempts = 3;
+const retryableStatusCodes = new Set([408, 429, 500, 502, 503, 504]);
 
 type GmailMessageListResponse = {
   messages?: Array<{
@@ -56,6 +59,73 @@ function buildHeaders(accessToken: string) {
   };
 }
 
+function wait(delayMs: number) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, delayMs);
+  });
+}
+
+function isAbortError(error: unknown) {
+  return error instanceof Error && error.name === "AbortError";
+}
+
+async function gmailApiFetch(
+  accessToken: string,
+  url: string,
+  failureLabel: string
+) {
+  let lastError: Error | null = null;
+
+  for (let attempt = 1; attempt <= gmailApiMaxAttempts; attempt += 1) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), gmailApiTimeoutMs);
+
+    try {
+      const response = await fetch(url, {
+        method: "GET",
+        headers: buildHeaders(accessToken),
+        cache: "no-store",
+        signal: controller.signal,
+      });
+
+      if (response.ok) {
+        return response;
+      }
+
+      if (response.status === 401) {
+        throw new Error("Gmail authorization expired. Please reconnect Gmail and try again.");
+      }
+
+      if (attempt < gmailApiMaxAttempts && retryableStatusCodes.has(response.status)) {
+        await wait(attempt * 400);
+        continue;
+      }
+
+      throw new Error(`${failureLabel} (HTTP ${response.status}).`);
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+
+      if (
+        attempt < gmailApiMaxAttempts &&
+        (lastError instanceof TypeError || isAbortError(lastError))
+      ) {
+        await wait(attempt * 400);
+        continue;
+      }
+
+      if (isAbortError(lastError)) {
+        throw new Error(`${failureLabel} timed out while contacting Gmail.`);
+      }
+
+      throw lastError;
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  throw lastError ?? new Error(failureLabel);
+}
+
 export async function listGmailMessages(
   accessToken: string,
   query: string,
@@ -70,15 +140,11 @@ export async function listGmailMessages(
     searchParams.set("pageToken", pageToken);
   }
 
-  const response = await fetch(`${GMAIL_API_BASE_URL}/messages?${searchParams.toString()}`, {
-    method: "GET",
-    headers: buildHeaders(accessToken),
-    cache: "no-store",
-  });
-
-  if (!response.ok) {
-    throw new Error("Failed to list Gmail messages.");
-  }
+  const response = await gmailApiFetch(
+    accessToken,
+    `${GMAIL_API_BASE_URL}/messages?${searchParams.toString()}`,
+    "Failed to list Gmail messages"
+  );
 
   const payload = (await response.json()) as GmailMessageListResponse;
   return {
@@ -93,18 +159,11 @@ export async function getGmailMessage(accessToken: string, messageId: string) {
     format: "full",
   });
 
-  const response = await fetch(
+  const response = await gmailApiFetch(
+    accessToken,
     `${GMAIL_API_BASE_URL}/messages/${messageId}?${searchParams.toString()}`,
-    {
-      method: "GET",
-      headers: buildHeaders(accessToken),
-      cache: "no-store",
-    }
+    `Failed to fetch Gmail message details for ${messageId}`
   );
-
-  if (!response.ok) {
-    throw new Error("Failed to fetch Gmail message details.");
-  }
 
   return (await response.json()) as GmailMessageDetail;
 }

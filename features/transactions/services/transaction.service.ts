@@ -1,13 +1,18 @@
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { startOfMonth } from "date-fns";
+import { startOfDay, startOfMonth, startOfYear } from "date-fns";
 
-import { createManualTransactionSchema, transactionQuerySchema } from "@/features/transactions/schemas/transaction.schema";
+import {
+  createManualTransactionSchema,
+  transactionOverviewQuerySchema,
+  transactionQuerySchema,
+} from "@/features/transactions/schemas/transaction.schema";
 import type {
   GmailSyncResult,
   TransactionListResponse,
   TransactionOverview,
+  TransactionOverviewPeriod,
 } from "@/features/transactions/types/Transaction";
 import type {
   CreateManualTransactionRpcParams,
@@ -22,57 +27,90 @@ export async function listTransactions(
   query?: unknown
 ): Promise<TransactionListResponse> {
   const parsedQuery = transactionQuerySchema.parse(query ?? {});
-  let transactionQuery = supabase
+  const rangeFrom = (parsedQuery.page - 1) * parsedQuery.pageSize;
+  const rangeTo = rangeFrom + parsedQuery.pageSize - 1;
+
+  let pagedTransactionQuery = supabase
     .from("transactions")
-    .select("*")
+    .select("*", { count: "exact" })
     .order("happened_at", { ascending: false })
-    .limit(50);
+    .range(rangeFrom, rangeTo);
+
+  let summaryQuery = supabase
+    .from("transactions")
+    .select("direction, amount")
+    .order("happened_at", { ascending: false });
 
   if (parsedQuery.bankName) {
-    transactionQuery = transactionQuery.eq("bank_name", parsedQuery.bankName);
+    pagedTransactionQuery = pagedTransactionQuery.eq("bank_name", parsedQuery.bankName);
+    summaryQuery = summaryQuery.eq("bank_name", parsedQuery.bankName);
   }
 
   if (parsedQuery.category) {
-    transactionQuery = transactionQuery.eq("category", parsedQuery.category);
+    pagedTransactionQuery = pagedTransactionQuery.eq("category", parsedQuery.category);
+    summaryQuery = summaryQuery.eq("category", parsedQuery.category);
   }
 
   if (parsedQuery.direction) {
-    transactionQuery = transactionQuery.eq("direction", parsedQuery.direction);
+    pagedTransactionQuery = pagedTransactionQuery.eq("direction", parsedQuery.direction);
+    summaryQuery = summaryQuery.eq("direction", parsedQuery.direction);
   }
 
   if (parsedQuery.status) {
-    transactionQuery = transactionQuery.eq("status", parsedQuery.status);
+    pagedTransactionQuery = pagedTransactionQuery.eq("status", parsedQuery.status);
+    summaryQuery = summaryQuery.eq("status", parsedQuery.status);
   }
 
   if (parsedQuery.search) {
-    transactionQuery = transactionQuery.or(
-      `merchant.ilike.%${parsedQuery.search}%,description.ilike.%${parsedQuery.search}%,reference_number.ilike.%${parsedQuery.search}%`
-    );
+    const searchFilter =
+      `merchant.ilike.%${parsedQuery.search}%,description.ilike.%${parsedQuery.search}%,reference_number.ilike.%${parsedQuery.search}%`;
+
+    pagedTransactionQuery = pagedTransactionQuery.or(searchFilter);
+    summaryQuery = summaryQuery.or(searchFilter);
   }
 
-  const { data, error } = await transactionQuery;
-  if (error) {
-    throw new Error(error.message);
+  const [pagedTransactionsResult, summaryResult] = await Promise.all([
+    pagedTransactionQuery,
+    summaryQuery,
+  ]);
+
+  if (pagedTransactionsResult.error) {
+    throw new Error(pagedTransactionsResult.error.message);
   }
 
-  const transactions = ((data ?? []) as TransactionRecord[]).map(mapTransactionRecord);
+  if (summaryResult.error) {
+    throw new Error(summaryResult.error.message);
+  }
+
+  const transactions = ((pagedTransactionsResult.data ?? []) as TransactionRecord[]).map(mapTransactionRecord);
+  const summaryRows = summaryResult.data ?? [];
+  const totalCount = pagedTransactionsResult.count ?? summaryRows.length;
+  const totalPages = Math.max(1, Math.ceil(totalCount / parsedQuery.pageSize));
 
   return {
     transactions,
     summary: {
-      totalCount: transactions.length,
+      totalCount,
       incomeAmount: Number(
-        transactions
+        summaryRows
           .filter((transaction) => transaction.direction === "income")
-          .reduce((sum, transaction) => sum + transaction.amount, 0)
+          .reduce((sum, transaction) => sum + Number(transaction.amount ?? 0), 0)
           .toFixed(2)
       ),
       expenseAmount: Number(
-        transactions
+        summaryRows
           .filter((transaction) => transaction.direction !== "income")
-          .reduce((sum, transaction) => sum + transaction.amount, 0)
+          .reduce((sum, transaction) => sum + Number(transaction.amount ?? 0), 0)
           .toFixed(2)
       ),
+    },
+    pagination: {
+      page: parsedQuery.page,
+      pageSize: parsedQuery.pageSize,
+      totalCount,
+      totalPages,
+      hasNextPage: parsedQuery.page < totalPages,
+      hasPreviousPage: parsedQuery.page > 1,
     },
   };
 }
@@ -152,74 +190,74 @@ export async function syncGmailTransactions(
 }
 
 export async function getTransactionOverview(
-  supabase: SupabaseClient
+  supabase: SupabaseClient,
+  query?: unknown
 ): Promise<TransactionOverview> {
-  const currentMonthStart = startOfMonth(new Date()).toISOString();
+  const parsedQuery = transactionOverviewQuerySchema.parse(query ?? {});
+  const periodStart = getTransactionOverviewStart(parsedQuery.period).toISOString();
+  const budgetPeriod = parsedQuery.period === "daily" ? "monthly" : parsedQuery.period;
 
   const [
-    transactionsResult,
-    monthlyTransactionsResult,
+    totalBalanceResult,
+    periodTransactionsResult,
     budgetsResult,
   ] = await Promise.all([
     supabase
       .from("transactions")
-      .select("*")
-      .order("happened_at", { ascending: false })
-      .limit(10),
+      .select("direction, amount"),
     supabase
       .from("transactions")
       .select("*")
-      .gte("happened_at", currentMonthStart),
+      .gte("happened_at", periodStart)
+      .order("happened_at", { ascending: false }),
     supabase
       .from("budgets")
       .select("limit_amount, spent_amount")
-      .eq("period", "monthly")
+      .eq("period", budgetPeriod)
       .eq("status", "active"),
   ]);
 
-  if (transactionsResult.error) {
-    throw new Error(transactionsResult.error.message);
+  if (totalBalanceResult.error) {
+    throw new Error(totalBalanceResult.error.message);
   }
 
-  if (monthlyTransactionsResult.error) {
-    throw new Error(monthlyTransactionsResult.error.message);
+  if (periodTransactionsResult.error) {
+    throw new Error(periodTransactionsResult.error.message);
   }
 
   if (budgetsResult.error) {
     throw new Error(budgetsResult.error.message);
   }
 
-  const recentTransactions = ((transactionsResult.data ?? []) as TransactionRecord[]).map(mapTransactionRecord);
-  const monthlyTransactions = ((monthlyTransactionsResult.data ?? []) as TransactionRecord[]).map(mapTransactionRecord);
+  const totalBalanceRows = totalBalanceResult.data ?? [];
+  const periodTransactions = ((periodTransactionsResult.data ?? []) as TransactionRecord[]).map(mapTransactionRecord);
+  const recentTransactions = periodTransactions.slice(0, 10);
 
   const totalBalance = Number(
-    recentTransactions
-      .concat(
-        monthlyTransactions.filter(
-          (monthlyTransaction) =>
-            !recentTransactions.some((recentTransaction) => recentTransaction.id === monthlyTransaction.id)
-        )
-      )
-      .reduce((sum, transaction) => sum + transaction.signedAmount, 0)
+    totalBalanceRows
+      .reduce((sum, transaction) => {
+        const amount = Number(transaction.amount ?? 0);
+        return sum + (transaction.direction === "income" ? amount : amount * -1);
+      }, 0)
       .toFixed(2)
   );
 
-  const monthlyIncome = Number(
-    monthlyTransactions
+  const periodIncome = Number(
+    periodTransactions
       .filter((transaction) => transaction.direction === "income")
       .reduce((sum, transaction) => sum + transaction.amount, 0)
       .toFixed(2)
   );
 
-  const monthlyExpense = Number(
-    monthlyTransactions
+  const periodExpense = Number(
+    periodTransactions
       .filter((transaction) => transaction.direction !== "income")
       .reduce((sum, transaction) => sum + transaction.amount, 0)
       .toFixed(2)
   );
 
   const categorySpendMap = new Map<string, number>();
-  for (const transaction of monthlyTransactions.filter((item) => item.direction !== "income")) {
+  for (const transaction of periodTransactions.filter((item) => item.direction !== "income")) {
     categorySpendMap.set(
       transaction.categoryLabel,
       Number(((categorySpendMap.get(transaction.categoryLabel) ?? 0) + transaction.amount).toFixed(2))
@@ -235,11 +273,12 @@ export async function getTransactionOverview(
   );
 
   return {
+    period: parsedQuery.period,
     totalBalance,
-    monthlySpending: monthlyExpense,
+    periodSpending: periodExpense,
     remainingBudget: Number((budgetLimit - trackedBudgetSpent).toFixed(2)),
-    monthlyIncome,
-    monthlyExpense,
+    periodIncome,
+    periodExpense,
     budgetLimit,
     categorySpend: Array.from(categorySpendMap.entries())
       .map(([name, value]) => ({ name, value }))
@@ -247,4 +286,18 @@ export async function getTransactionOverview(
       .slice(0, 6),
     recentTransactions,
   };
+}
+
+function getTransactionOverviewStart(period: TransactionOverviewPeriod) {
+  const now = new Date();
+
+  if (period === "daily") {
+    return startOfDay(now);
+  }
+
+  if (period === "yearly") {
+    return startOfYear(now);
+  }
+
+  return startOfMonth(now);
 }

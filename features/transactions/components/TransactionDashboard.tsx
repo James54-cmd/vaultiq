@@ -15,12 +15,15 @@ import { QuickAddTransactionModal } from "@/features/transactions/components/Qui
 import { TransactionTable } from "@/features/transactions/components/TransactionTable";
 import { useTransactionOverview } from "@/features/transactions/hooks/useTransactionOverview";
 import { useTransactions } from "@/features/transactions/hooks/useTransactions";
-import { transactionCategoryColors } from "@/features/transactions/constants/transaction.constants";
-import type { GmailSyncResult } from "@/features/transactions/types/Transaction";
+import {
+  transactionCategoryColors,
+  transactionOverviewPeriods,
+} from "@/features/transactions/constants/transaction.constants";
+import type { GmailSyncResult, TransactionOverviewPeriod } from "@/features/transactions/types/Transaction";
 import { formatCurrency } from "@/lib/format";
 import { isGmailSyncEnabled } from "@/lib/app-config";
 
-const summaryCards = [
+const summaryCardKeys = [
   {
     key: "totalBalance",
     label: "Total Balance",
@@ -38,13 +41,29 @@ const summaryCards = [
   },
 ] as const;
 
+function formatOverviewPeriodLabel(period: TransactionOverviewPeriod) {
+  return `${period.charAt(0).toUpperCase()}${period.slice(1)}`;
+}
+
 export function TransactionDashboard() {
   const [gmailSyncResult, setGmailSyncResult] = useState<GmailSyncResult | null>(null);
   const gmailSyncEnabled = isGmailSyncEnabled();
   const { status: gmailStatus, error: gmailError, isPending: gmailPending, reloadConnection } =
     useGmailConnection(gmailSyncEnabled);
-  const { overview, error, isPending, reloadOverview } = useTransactionOverview();
-  const { createTransaction, syncGmailTransactions, isPending: transactionPending } = useTransactions();
+  const { overview, period, setPeriod, error, isPending, reloadOverview } = useTransactionOverview();
+  const { createTransaction, syncGmailTransactions, isSyncingGmail } = useTransactions();
+  const periodLabel = formatOverviewPeriodLabel(period);
+  const summaryCards = [
+    summaryCardKeys[0],
+    {
+      ...summaryCardKeys[1],
+      label: `${periodLabel} Spending`,
+    },
+    {
+      ...summaryCardKeys[2],
+      label: `${periodLabel} Budget Left`,
+    },
+  ] as const;
 
   return (
     <div className="space-y-6 p-4 md:p-6 xl:p-8">
@@ -53,12 +72,31 @@ export function TransactionDashboard() {
         title="Phase one control panel for your transaction flow"
         description="Track logged balance movement, current-month spending, and budget headroom from one place."
         action={
-          <QuickAddTransactionModal
-            onSubmit={async (input) => {
-              await createTransaction(input);
-              reloadOverview();
-            }}
-          />
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <div className="flex items-center gap-1 rounded-lg border border-border bg-surface px-1 py-1">
+              {transactionOverviewPeriods.map((option) => (
+                <Button
+                  key={option}
+                  type="button"
+                  variant="ghost"
+                  className={
+                    option === period
+                      ? "bg-accent-muted text-primary hover:bg-accent-muted hover:text-primary"
+                      : "text-muted hover:bg-accent-muted hover:text-foreground"
+                  }
+                  onClick={() => setPeriod(option)}
+                >
+                  {formatOverviewPeriodLabel(option)}
+                </Button>
+              ))}
+            </div>
+            <QuickAddTransactionModal
+              onSubmit={async (input) => {
+                await createTransaction(input);
+                reloadOverview();
+              }}
+            />
+          </div>
         }
       />
 
@@ -68,7 +106,7 @@ export function TransactionDashboard() {
           isPending={gmailPending}
           error={gmailError}
           connectHref="/api/gmail/connect?next=/"
-          syncPending={transactionPending}
+          syncPending={isSyncingGmail}
           onSync={async () => {
             const result = await syncGmailTransactions();
             setGmailSyncResult(result);
@@ -83,7 +121,11 @@ export function TransactionDashboard() {
       <div className="grid gap-4 md:grid-cols-3">
         {summaryCards.map((card) => {
           const Icon = card.icon;
-          const value = overview?.[card.key] ?? 0;
+          const value = card.key === "totalBalance"
+            ? overview?.totalBalance ?? 0
+            : card.key === "monthlySpending"
+              ? overview?.periodSpending ?? 0
+              : overview?.remainingBudget ?? 0;
           const colorClass =
             card.key === "monthlySpending"
               ? "text-error"
@@ -121,11 +163,11 @@ export function TransactionDashboard() {
         <Card className="border-border bg-surface">
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
-              <CardTitle>Monthly Cash Snapshot</CardTitle>
-              <p className="text-sm text-muted">Income versus spending from the current month ledger.</p>
+              <CardTitle>{periodLabel} Cash Snapshot</CardTitle>
+              <p className="text-sm text-muted">Income versus spending from the selected dashboard window.</p>
             </div>
             <Button variant="secondary" className="pointer-events-none">
-              Live
+              {periodLabel}
             </Button>
           </CardHeader>
           <CardContent className="grid gap-4 md:grid-cols-3">
@@ -135,7 +177,7 @@ export function TransactionDashboard() {
                 <Skeleton className="mt-3 h-7 w-28" />
               ) : (
                 <p className="financial-figure pt-2 text-2xl font-bold text-primary">
-                  {formatCurrency(overview?.monthlyIncome ?? 0)}
+                  {formatCurrency(overview?.periodIncome ?? 0)}
                 </p>
               )}
             </div>
@@ -145,12 +187,12 @@ export function TransactionDashboard() {
                 <Skeleton className="mt-3 h-7 w-28" />
               ) : (
                 <p className="financial-figure pt-2 text-2xl font-bold text-error">
-                  {formatCurrency((overview?.monthlyExpense ?? 0) * -1)}
+                  {formatCurrency((overview?.periodExpense ?? 0) * -1)}
                 </p>
               )}
             </div>
             <div className="rounded-lg border border-border bg-background px-4 py-4">
-              <p className="text-sm text-muted">Budget Limit</p>
+              <p className="text-sm text-muted">{period === "daily" ? "Monthly Budget Limit" : `${periodLabel} Budget Limit`}</p>
               {isPending ? (
                 <Skeleton className="mt-3 h-7 w-28" />
               ) : (
@@ -165,7 +207,7 @@ export function TransactionDashboard() {
         <Card className="border-border bg-surface">
           <CardHeader>
             <CardTitle>Expense Categories</CardTitle>
-            <p className="text-sm text-muted">Auto-tagged breakdown from logged spending.</p>
+            <p className="text-sm text-muted">Auto-tagged breakdown from the selected {period} spending window.</p>
           </CardHeader>
           <CardContent className="grid gap-6 lg:grid-cols-2">
             <div className="h-56">
@@ -232,7 +274,7 @@ export function TransactionDashboard() {
 
       <TransactionTable
         title="Recent Transactions"
-        description="Latest transactions from manual logging and Gmail receipt parsing."
+        description={`Latest transactions from the selected ${period} dashboard window.`}
         transactions={overview?.recentTransactions ?? []}
         isPending={isPending}
       />

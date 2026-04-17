@@ -5,6 +5,7 @@ import type {
   GmailSyncResult,
   TransactionListResponse,
   TransactionOverview,
+  TransactionOverviewQuery,
   TransactionQuery,
 } from "@/features/transactions/types/Transaction";
 import type { ApiErrorResponse, ApiSuccessResponse } from "@/types/api";
@@ -21,6 +22,21 @@ function buildQueryString(query?: TransactionQuery) {
   if (query.direction) searchParams.set("direction", query.direction);
   if (query.status) searchParams.set("status", query.status);
   if (query.search) searchParams.set("search", query.search);
+  if (query.page) searchParams.set("page", String(query.page));
+  if (query.pageSize) searchParams.set("pageSize", String(query.pageSize));
+
+  const queryString = searchParams.toString();
+  return queryString.length > 0 ? `?${queryString}` : "";
+}
+
+function buildOverviewQueryString(query?: TransactionOverviewQuery) {
+  const searchParams = new URLSearchParams();
+
+  if (!query) {
+    return "";
+  }
+
+  if (query.period) searchParams.set("period", query.period);
 
   const queryString = searchParams.toString();
   return queryString.length > 0 ? `?${queryString}` : "";
@@ -86,8 +102,8 @@ export async function createManualTransactionRequest(input: CreateManualTransact
   return payload.data;
 }
 
-export async function fetchTransactionOverview() {
-  const response = await fetch("/api/transactions/overview", {
+export async function fetchTransactionOverview(query?: TransactionOverviewQuery) {
+  const response = await fetch(`/api/transactions/overview${buildOverviewQueryString(query)}`, {
     method: "GET",
     headers: {
       "Content-Type": "application/json",

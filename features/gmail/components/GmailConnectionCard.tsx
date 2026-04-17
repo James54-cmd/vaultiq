@@ -88,9 +88,10 @@ export function GmailConnectionCard({
               variant="secondary"
               onClick={onSync}
               disabled={syncPending || isPending}
+              aria-busy={syncPending}
             >
-              <RefreshCcw className="h-4 w-4" />
-              {syncPending ? "Syncing..." : "Sync Gmail"}
+              <RefreshCcw className={syncPending ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
+              {syncPending ? "Syncing Gmail..." : "Sync Gmail"}
             </Button>
           ) : null}
           <Button asChild variant={status.connected ? "secondary" : "default"}>

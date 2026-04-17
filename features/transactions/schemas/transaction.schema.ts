@@ -4,6 +4,7 @@ import {
   supportedBanks,
   transactionCategories,
   transactionDirections,
+  transactionOverviewPeriods,
   transactionSources,
   transactionStatuses,
 } from "@/features/transactions/constants/transaction.constants";
@@ -14,6 +15,7 @@ export const transactionSourceSchema = z.enum(transactionSources);
 export const transactionStatusSchema = z.enum(transactionStatuses);
 export const transactionCategorySchema = z.enum(transactionCategories);
 export const supportedBankSchema = z.enum(supportedBanks);
+export const transactionOverviewPeriodSchema = z.enum(transactionOverviewPeriods);
 
 const amountSchema = z.number().finite().nonnegative();
 const dateStringSchema = z.string().date();
@@ -111,6 +113,12 @@ export const transactionQuerySchema = z.object({
   direction: transactionDirectionSchema.optional(),
   status: transactionStatusSchema.optional(),
   search: z.string().trim().min(1).optional(),
+  page: z.coerce.number().int().min(1).optional().default(1),
+  pageSize: z.coerce.number().int().min(5).max(50).optional().default(20),
+});
+
+export const transactionOverviewQuerySchema = z.object({
+  period: transactionOverviewPeriodSchema.optional().default("monthly"),
 });
 
 export const gmailSyncSchema = z.object({

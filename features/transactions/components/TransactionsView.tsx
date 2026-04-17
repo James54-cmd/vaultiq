@@ -45,8 +45,10 @@ export function TransactionsView() {
   const {
     transactions,
     summary,
+    pagination,
     error,
     isPending,
+    isSyncingGmail,
     search,
     setSearch,
     query,
@@ -103,7 +105,7 @@ export function TransactionsView() {
           isPending={gmailPending}
           error={gmailMessage ?? gmailError}
           connectHref="/api/gmail/connect?next=/transactions"
-          syncPending={isPending}
+          syncPending={isSyncingGmail}
           onSync={async () => {
             const result = await syncGmailTransactions();
             setGmailSyncResult(result);
@@ -138,6 +140,7 @@ export function TransactionsView() {
             onValueChange={(value) =>
               setQuery((current) => ({
                 ...current,
+                page: 1,
                 bankName: value === "all" ? undefined : (value as typeof supportedBanks[number]),
               }))
             }
@@ -160,6 +163,7 @@ export function TransactionsView() {
             onValueChange={(value) =>
               setQuery((current) => ({
                 ...current,
+                page: 1,
                 category: value === "all" ? undefined : (value as TransactionCategory),
               }))
             }
@@ -182,6 +186,7 @@ export function TransactionsView() {
             onValueChange={(value) =>
               setQuery((current) => ({
                 ...current,
+                page: 1,
                 direction: value === "all" ? undefined : (value as TransactionDirection),
               }))
             }
@@ -204,6 +209,7 @@ export function TransactionsView() {
             onValueChange={(value) =>
               setQuery((current) => ({
                 ...current,
+                page: 1,
                 status: value === "all" ? undefined : (value as TransactionStatus),
               }))
             }
@@ -229,6 +235,13 @@ export function TransactionsView() {
         description="Every row keeps the source bank visible, with parsed references where available."
         transactions={transactions}
         isPending={isPending}
+        pagination={pagination}
+        onPageChange={(page) =>
+          setQuery((current) => ({
+            ...current,
+            page,
+          }))
+        }
       />
     </div>
   );

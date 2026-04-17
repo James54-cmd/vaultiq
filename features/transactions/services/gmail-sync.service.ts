@@ -15,6 +15,8 @@ import { parseGmailPaymentEmail } from "@/features/transactions/utils/parseGmail
 import type { ParsedGmailTransactionsResult } from "@/features/transactions/types/Transaction";
 import { getGmailEnv } from "@/lib/gmail/config";
 
+const gmailMessageDetailBatchSize = 5;
+
 function buildGmailSyncQuery(baseQuery: string, daysBack: number) {
   const trimmedQuery = baseQuery.trim();
 
@@ -23,6 +25,24 @@ function buildGmailSyncQuery(baseQuery: string, daysBack: number) {
   }
 
   return `(${trimmedQuery}) newer_than:${daysBack}d`;
+}
+
+async function fetchGmailMessageDetailsInBatches(
+  accessToken: string,
+  messages: Array<{ id: string }>
+) {
+  const details = [];
+
+  for (let index = 0; index < messages.length; index += gmailMessageDetailBatchSize) {
+    const batch = messages.slice(index, index + gmailMessageDetailBatchSize);
+    const batchDetails = await Promise.all(
+      batch.map((message) => getGmailMessage(accessToken, message.id))
+    );
+
+    details.push(...batchDetails);
+  }
+
+  return details;
 }
 
 export async function fetchParsedGmailTransactions(
@@ -68,7 +88,7 @@ export async function fetchParsedGmailTransactions(
   }
 
   const messages = Array.from(messageMap.values());
-  const details = await Promise.all(messages.map((message) => getGmailMessage(accessToken, message.id)));
+  const details = await fetchGmailMessageDetailsInBatches(accessToken, messages);
 
   await markGmailConnectionSynced(supabase, connection.id);
 

@@ -29,6 +29,12 @@ const transactionGraphqlSchema = buildSchema(`
     flagged
   }
 
+  enum TransactionOverviewPeriod {
+    daily
+    monthly
+    yearly
+  }
+
   enum TransactionCategory {
     food
     rent
@@ -67,6 +73,7 @@ const transactionGraphqlSchema = buildSchema(`
     Tonik
     GoTyme
     SeaBank
+    MariBank
     OwnBank
     CIMB
     ING_Philippines
@@ -105,13 +112,15 @@ const transactionGraphqlSchema = buildSchema(`
   }
 
   type TransactionOverview {
+    period: TransactionOverviewPeriod!
     totalBalance: Float!
-    monthlySpending: Float!
+    periodSpending: Float!
     remainingBudget: Float!
-    monthlyIncome: Float!
-    monthlyExpense: Float!
+    periodIncome: Float!
+    periodExpense: Float!
     budgetLimit: Float!
     categorySpend: [TransactionOverviewCategory!]!
+    recentTransactions: [Transaction!]!
   }
 
   type GmailSyncResult {
@@ -162,7 +171,7 @@ const transactionGraphqlSchema = buildSchema(`
       status: TransactionStatus
       search: String
     ): [Transaction!]!
-    transactionOverview: TransactionOverview!
+    transactionOverview(period: TransactionOverviewPeriod): TransactionOverview!
   }
 
   type Mutation {
@@ -178,11 +187,11 @@ const rootValue = {
 
     return (await listTransactions(supabase, args)).transactions;
   },
-  transactionOverview: async () => {
+  transactionOverview: async (args: Record<string, unknown>) => {
     const supabase = await getSupabaseSessionServerClient();
     await requireAuthenticatedUser(supabase);
 
-    return getTransactionOverview(supabase);
+    return getTransactionOverview(supabase, args);
   },
   createManualTransaction: async ({ input }: { input: Record<string, unknown> }) =>
     createManualTransaction(await getSupabaseSessionServerClient(), input),

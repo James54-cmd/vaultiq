@@ -9,11 +9,40 @@ function isPublicPath(pathname: string) {
   return authRoutes.some((route) => pathname === route);
 }
 
+function hasSupabaseAuthCookie(request: NextRequest) {
+  return request.cookies.getAll().some((cookie) =>
+    cookie.name.startsWith("sb-") && cookie.name.includes("auth-token")
+  );
+}
+
+function buildLoginRedirect(request: NextRequest, response: NextResponse) {
+  const loginUrl = request.nextUrl.clone();
+  loginUrl.pathname = "/login";
+  loginUrl.searchParams.set("redirectTo", request.nextUrl.pathname);
+  const redirectResponse = NextResponse.redirect(loginUrl);
+
+  response.cookies.getAll().forEach((cookie) => {
+    redirectResponse.cookies.set(cookie);
+  });
+
+  return redirectResponse;
+}
+
 export async function updateSession(request: NextRequest) {
   const env = getSupabaseEnv();
   let response = NextResponse.next({
     request,
   });
+  const publicPath = isPublicPath(request.nextUrl.pathname);
+  const hasAuthCookie = hasSupabaseAuthCookie(request);
+
+  if (!hasAuthCookie) {
+    if (publicPath) {
+      return response;
+    }
+
+    return buildLoginRedirect(request, response);
+  }
 
   const supabase = createServerClient(
     env.NEXT_PUBLIC_SUPABASE_URL,
@@ -33,22 +62,23 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  let user = null;
 
-  if (!user && !isPublicPath(request.nextUrl.pathname)) {
-    const loginUrl = request.nextUrl.clone();
-    loginUrl.pathname = "/login";
-    loginUrl.searchParams.set("redirectTo", request.nextUrl.pathname);
-    const redirectResponse = NextResponse.redirect(loginUrl);
-    response.cookies.getAll().forEach((cookie) => {
-      redirectResponse.cookies.set(cookie);
-    });
-    return redirectResponse;
+  try {
+    const {
+      data: { user: authenticatedUser },
+    } = await supabase.auth.getUser();
+
+    user = authenticatedUser;
+  } catch {
+    return response;
   }
 
-  if (user && isPublicPath(request.nextUrl.pathname)) {
+  if (!user && !publicPath) {
+    return buildLoginRedirect(request, response);
+  }
+
+  if (user && publicPath) {
     const appUrl = request.nextUrl.clone();
     appUrl.pathname = "/";
     appUrl.searchParams.delete("redirectTo");

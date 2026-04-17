@@ -5,6 +5,7 @@ export const GET_TRANSACTIONS_QUERY = `
     $direction: TransactionDirection
     $status: TransactionStatus
     $search: String
+    $period: TransactionOverviewPeriod
   ) {
     transactions(
       bankName: $bankName
@@ -35,16 +36,20 @@ export const GET_TRANSACTIONS_QUERY = `
       gmailMessageId
       gmailThreadId
     }
-    transactionOverview {
+    transactionOverview(period: $period) {
+      period
       totalBalance
-      monthlySpending
+      periodSpending
       remainingBudget
-      monthlyIncome
-      monthlyExpense
+      periodIncome
+      periodExpense
       budgetLimit
       categorySpend {
         name
         value
+      }
+      recentTransactions {
+        id
       }
     }
   }
