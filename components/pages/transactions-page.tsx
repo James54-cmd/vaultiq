@@ -8,7 +8,15 @@ import { SectionHeader } from "@/components/section-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { bankOptions, transactions } from "@/lib/data";
 import { formatCurrency } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -61,47 +69,64 @@ export function TransactionsPage() {
               />
             </div>
             <div className="flex flex-wrap gap-2">
-              <select
-                className="h-10 rounded-sm border border-border bg-surface px-3 text-sm text-foreground outline-none"
+              <Select
                 value={selectedBank}
-                onChange={(event) => setSelectedBank(event.target.value)}
+                onValueChange={setSelectedBank}
               >
-                <option>All Banks</option>
-                {bankOptions.slice(0, 8).map((bank) => (
-                  <option key={bank}>{bank}</option>
-                ))}
-              </select>
-              <select className="h-10 rounded-sm border border-border bg-surface px-3 text-sm text-foreground outline-none">
-                <option>All Categories</option>
-                <option>Housing</option>
-                <option>Food</option>
-                <option>Shopping</option>
-                <option>Utilities</option>
-              </select>
-              <select className="h-10 rounded-sm border border-border bg-surface px-3 text-sm text-foreground outline-none">
-                <option>Last 30 Days</option>
-                <option>Last 7 Days</option>
-                <option>This Quarter</option>
-                <option>Custom Range</option>
-              </select>
+                <SelectTrigger className="w-40">
+                  <SelectValue placeholder="All Banks" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="All Banks">All Banks</SelectItem>
+                  {bankOptions.slice(0, 8).map((bank) => (
+                    <SelectItem key={bank} value={bank}>
+                      {bank}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select defaultValue="All Categories">
+                <SelectTrigger className="w-44">
+                  <SelectValue placeholder="All Categories" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="All Categories">All Categories</SelectItem>
+                  <SelectItem value="Housing">Housing</SelectItem>
+                  <SelectItem value="Food">Food</SelectItem>
+                  <SelectItem value="Shopping">Shopping</SelectItem>
+                  <SelectItem value="Utilities">Utilities</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select defaultValue="Last 30 Days">
+                <SelectTrigger className="w-40">
+                  <SelectValue placeholder="Last 30 Days" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Last 30 Days">Last 30 Days</SelectItem>
+                  <SelectItem value="Last 7 Days">Last 7 Days</SelectItem>
+                  <SelectItem value="This Quarter">This Quarter</SelectItem>
+                  <SelectItem value="Custom Range">Custom Range</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
           <div className="flex flex-wrap gap-2">
             {filterKinds.map((kind) => (
-              <button
+              <Button
                 key={kind}
                 type="button"
+                variant="ghost"
                 onClick={() => setSelectedKind(kind)}
                 className={cn(
-                  "rounded-full border px-3 py-2 text-xs font-medium uppercase tracking-wide transition",
+                  "rounded-full border px-3 py-2 text-xs font-medium uppercase tracking-wide",
                   selectedKind === kind
                     ? "border-primary bg-primary/10 text-primary"
                     : "border-border bg-accent-muted text-muted hover:text-foreground"
                 )}
               >
                 {kind}
-              </button>
+              </Button>
             ))}
           </div>
         </CardHeader>
@@ -142,11 +167,9 @@ export function TransactionsPage() {
                     className="border-b border-border text-sm transition hover:bg-accent-muted"
                   >
                     <td className="px-4 py-4">
-                      <input
-                        type="checkbox"
+                      <Checkbox
                         checked={selectedIds.includes(transaction.id)}
-                        onChange={() => toggleSelection(transaction.id)}
-                        className="h-4 w-4 rounded border-border bg-surface"
+                        onCheckedChange={() => toggleSelection(transaction.id)}
                       />
                     </td>
                     <td className="px-4 py-4 text-muted">{transaction.date}</td>
