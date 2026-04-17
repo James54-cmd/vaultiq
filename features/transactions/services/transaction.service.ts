@@ -1,10 +1,10 @@
 import "server-only";
 
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { startOfMonth } from "date-fns";
 
 import { createManualTransactionSchema, transactionQuerySchema } from "@/features/transactions/schemas/transaction.schema";
 import type {
-  CreateManualTransactionInput,
   GmailSyncResult,
   TransactionListResponse,
   TransactionOverview,
@@ -16,11 +16,12 @@ import type {
 } from "@/features/transactions/types/TransactionRecord";
 import { mapTransactionRecord } from "@/features/transactions/utils/mapTransactionRecord";
 import { fetchParsedGmailTransactions } from "@/features/transactions/services/gmail-sync.service";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
 
-export async function listTransactions(query?: unknown): Promise<TransactionListResponse> {
+export async function listTransactions(
+  supabase: SupabaseClient,
+  query?: unknown
+): Promise<TransactionListResponse> {
   const parsedQuery = transactionQuerySchema.parse(query ?? {});
-  const supabase = getSupabaseServerClient();
   let transactionQuery = supabase
     .from("transactions")
     .select("*")
@@ -76,18 +77,20 @@ export async function listTransactions(query?: unknown): Promise<TransactionList
   };
 }
 
-export async function createManualTransaction(input: unknown) {
+export async function createManualTransaction(
+  supabase: SupabaseClient,
+  input: unknown
+) {
   const parsedInput = createManualTransactionSchema.parse(input);
-  const supabase = getSupabaseServerClient();
 
   const rpcPayload: CreateManualTransactionRpcParams = {
     p_direction: parsedInput.direction,
     p_amount: parsedInput.amount,
-    p_currency_code: parsedInput.currencyCode,
     p_bank_name: parsedInput.bankName,
     p_merchant: parsedInput.merchant,
     p_description: parsedInput.description,
     p_category: parsedInput.category,
+    p_currency_code: parsedInput.currencyCode,
     p_reference_number: parsedInput.referenceNumber ?? null,
     p_notes: parsedInput.notes ?? null,
     p_status: parsedInput.status,
@@ -102,24 +105,27 @@ export async function createManualTransaction(input: unknown) {
   return mapTransactionRecord(data as TransactionRecord);
 }
 
-export async function syncGmailTransactions(input?: unknown): Promise<GmailSyncResult> {
-  const supabase = getSupabaseServerClient();
-  const parsedTransactions = await fetchParsedGmailTransactions(input);
+export async function syncGmailTransactions(
+  supabase: SupabaseClient,
+  userId: string,
+  input?: unknown
+): Promise<GmailSyncResult> {
+  const parsedTransactions = await fetchParsedGmailTransactions(supabase, userId, input);
   const createdTransactions = [];
 
   for (const transaction of parsedTransactions) {
     const rpcPayload: IngestGmailTransactionRpcParams = {
       p_direction: transaction.direction,
       p_amount: transaction.amount,
-      p_currency_code: transaction.currencyCode,
       p_bank_name: transaction.bankName,
       p_merchant: transaction.merchant,
       p_description: transaction.description,
       p_category: transaction.category,
-      p_reference_number: transaction.referenceNumber,
-      p_status: transaction.status,
       p_happened_at: transaction.happenedAt,
       p_gmail_message_id: transaction.gmailMessageId,
+      p_currency_code: transaction.currencyCode,
+      p_reference_number: transaction.referenceNumber,
+      p_status: transaction.status,
       p_gmail_thread_id: transaction.gmailThreadId,
       p_raw_payload: transaction.rawPayload,
     };
@@ -138,8 +144,9 @@ export async function syncGmailTransactions(input?: unknown): Promise<GmailSyncR
   };
 }
 
-export async function getTransactionOverview(): Promise<TransactionOverview> {
-  const supabase = getSupabaseServerClient();
+export async function getTransactionOverview(
+  supabase: SupabaseClient
+): Promise<TransactionOverview> {
   const currentMonthStart = startOfMonth(new Date()).toISOString();
 
   const [

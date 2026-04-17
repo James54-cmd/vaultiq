@@ -2,12 +2,14 @@ import "server-only";
 
 import { buildSchema, graphql } from "graphql";
 
+import { requireAuthenticatedUser } from "@/features/auth/services/auth-session.service";
 import {
   createBudget,
   getBudgetSummary,
   listBudgets,
   updateBudget,
 } from "@/features/budgets/services/budget.service";
+import { getSupabaseSessionServerClient } from "@/lib/supabase/server";
 
 const budgetGraphqlSchema = buildSchema(`
   enum BudgetPeriod {
@@ -79,16 +81,36 @@ const budgetGraphqlSchema = buildSchema(`
 `);
 
 const rootValue = {
-  budgets: async (args: Record<string, unknown>) => listBudgets(args),
-  budgetSummary: async (args: Record<string, unknown>) => getBudgetSummary(args),
-  createBudget: async ({ input }: { input: Record<string, unknown> }) => createBudget(input),
+  budgets: async (args: Record<string, unknown>) => {
+    const supabase = await getSupabaseSessionServerClient();
+    await requireAuthenticatedUser(supabase);
+
+    return listBudgets(supabase, args);
+  },
+  budgetSummary: async (args: Record<string, unknown>) => {
+    const supabase = await getSupabaseSessionServerClient();
+    await requireAuthenticatedUser(supabase);
+
+    return getBudgetSummary(supabase, args);
+  },
+  createBudget: async ({ input }: { input: Record<string, unknown> }) => {
+    const supabase = await getSupabaseSessionServerClient();
+    await requireAuthenticatedUser(supabase);
+
+    return createBudget(supabase, input);
+  },
   updateBudget: async ({
     id,
     input,
   }: {
     id: string;
     input: Record<string, unknown>;
-  }) => updateBudget(id, input),
+  }) => {
+    const supabase = await getSupabaseSessionServerClient();
+    await requireAuthenticatedUser(supabase);
+
+    return updateBudget(supabase, id, input);
+  },
 };
 
 export async function executeBudgetGraphqlOperation({

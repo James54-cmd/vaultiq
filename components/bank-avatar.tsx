@@ -1,8 +1,11 @@
+import Image from "next/image";
+
 import { cn } from "@/lib/utils";
 
 type BankAvatarProps = {
   name: string;
   initials: string;
+  imageSrc?: string | null;
   tone?: "primary" | "secondary" | "warning" | "error";
   className?: string;
 };
@@ -17,6 +20,7 @@ const toneClasses = {
 export function BankAvatar({
   name,
   initials,
+  imageSrc,
   tone = "secondary",
   className,
 }: BankAvatarProps) {
@@ -29,7 +33,17 @@ export function BankAvatar({
         className
       )}
     >
-      {initials}
+      {imageSrc ? (
+        <Image
+          src={imageSrc}
+          alt={name}
+          width={40}
+          height={40}
+          className="h-full w-full rounded-full object-cover"
+        />
+      ) : (
+        initials
+      )}
     </div>
   );
 }

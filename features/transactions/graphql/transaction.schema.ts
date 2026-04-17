@@ -2,12 +2,14 @@ import "server-only";
 
 import { buildSchema, graphql } from "graphql";
 
+import { requireAuthenticatedUser } from "@/features/auth/services/auth-session.service";
 import {
   createManualTransaction,
   getTransactionOverview,
   listTransactions,
   syncGmailTransactions,
 } from "@/features/transactions/services/transaction.service";
+import { getSupabaseSessionServerClient } from "@/lib/supabase/server";
 
 const transactionGraphqlSchema = buildSchema(`
   enum TransactionSource {
@@ -154,12 +156,26 @@ const transactionGraphqlSchema = buildSchema(`
 `);
 
 const rootValue = {
-  transactions: async (args: Record<string, unknown>) => (await listTransactions(args)).transactions,
-  transactionOverview: async () => getTransactionOverview(),
+  transactions: async (args: Record<string, unknown>) => {
+    const supabase = await getSupabaseSessionServerClient();
+    await requireAuthenticatedUser(supabase);
+
+    return (await listTransactions(supabase, args)).transactions;
+  },
+  transactionOverview: async () => {
+    const supabase = await getSupabaseSessionServerClient();
+    await requireAuthenticatedUser(supabase);
+
+    return getTransactionOverview(supabase);
+  },
   createManualTransaction: async ({ input }: { input: Record<string, unknown> }) =>
-    createManualTransaction(input),
-  syncGmailTransactions: async ({ input }: { input?: Record<string, unknown> }) =>
-    syncGmailTransactions(input),
+    createManualTransaction(await getSupabaseSessionServerClient(), input),
+  syncGmailTransactions: async ({ input }: { input?: Record<string, unknown> }) => {
+    const supabase = await getSupabaseSessionServerClient();
+    const user = await requireAuthenticatedUser(supabase);
+
+    return syncGmailTransactions(supabase, user.id, input);
+  },
 };
 
 export async function executeTransactionGraphqlOperation({

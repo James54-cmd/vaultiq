@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 
+import { requireAuthenticatedUser } from "@/features/auth/services/auth-session.service";
 import {
   deleteBudget,
   updateBudget,
@@ -9,6 +10,7 @@ import {
   budgetIdSchema,
   updateBudgetSchema,
 } from "@/features/budgets/schemas/budget.schema";
+import { createSupabaseRouteHandlerClient } from "@/lib/supabase/route";
 import type { ApiErrorResponse, ApiSuccessResponse } from "@/types/api";
 
 type RouteContext = {
@@ -22,7 +24,9 @@ export async function PATCH(request: Request, context: RouteContext) {
     const { id } = await context.params;
     const budgetId = budgetIdSchema.parse(id);
     const payload = updateBudgetSchema.parse(await request.json());
-    const budget = await updateBudget(budgetId, payload);
+    const { supabase, applyCookies } = await createSupabaseRouteHandlerClient();
+    await requireAuthenticatedUser(supabase);
+    const budget = await updateBudget(supabase, budgetId, payload);
 
     if (!budget) {
       return NextResponse.json<ApiErrorResponse>(
@@ -35,9 +39,9 @@ export async function PATCH(request: Request, context: RouteContext) {
       );
     }
 
-    return NextResponse.json<ApiSuccessResponse<typeof budget>>({
+    return applyCookies(NextResponse.json<ApiSuccessResponse<typeof budget>>({
       data: budget,
-    });
+    }));
   } catch (error) {
     return handleApiError(error);
   }
@@ -47,7 +51,9 @@ export async function DELETE(_request: Request, context: RouteContext) {
   try {
     const { id } = await context.params;
     const budgetId = budgetIdSchema.parse(id);
-    const deleted = await deleteBudget(budgetId);
+    const { supabase, applyCookies } = await createSupabaseRouteHandlerClient();
+    await requireAuthenticatedUser(supabase);
+    const deleted = await deleteBudget(supabase, budgetId);
 
     if (!deleted) {
       return NextResponse.json<ApiErrorResponse>(
@@ -60,11 +66,11 @@ export async function DELETE(_request: Request, context: RouteContext) {
       );
     }
 
-    return NextResponse.json<ApiSuccessResponse<{ deleted: true }>>({
+    return applyCookies(NextResponse.json<ApiSuccessResponse<{ deleted: true }>>({
       data: {
         deleted: true,
       },
-    });
+    }));
   } catch (error) {
     return handleApiError(error);
   }
@@ -87,6 +93,17 @@ function handleApiError(error: unknown) {
         },
       },
       { status: 400 }
+    );
+  }
+
+  if (error instanceof Error && error.message === "Authentication required.") {
+    return NextResponse.json<ApiErrorResponse>(
+      {
+        error: {
+          message: error.message,
+        },
+      },
+      { status: 401 }
     );
   }
 

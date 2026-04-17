@@ -15,7 +15,6 @@ import {
   LogOut,
 } from "lucide-react";
 
-import vaultLogoWithText from "@/app/public/assets/logo/vault-logo-with-text.png";
 import { Badge } from "@/components/ui/badge";
 import { BankAvatar } from "@/components/bank-avatar";
 import { Button } from "@/components/ui/button";
@@ -39,6 +38,7 @@ export function VaultIQShell({ children }: { children: ReactNode }) {
   const [userName, setUserName] = useState("VaultIQ User");
   const [userInitials, setUserInitials] = useState("VQ");
   const [userEmail, setUserEmail] = useState("Secure workspace");
+  const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(null);
   const [isSigningOut, setIsSigningOut] = useState(false);
 
   useEffect(() => {
@@ -57,6 +57,12 @@ export function VaultIQShell({ children }: { children: ReactNode }) {
         typeof user.user_metadata?.full_name === "string" && user.user_metadata.full_name.trim().length > 0
           ? user.user_metadata.full_name
           : user.email.split("@")[0];
+      const avatarUrl =
+        typeof user.user_metadata?.avatar_url === "string" && user.user_metadata.avatar_url.trim().length > 0
+          ? user.user_metadata.avatar_url
+          : typeof user.user_metadata?.picture === "string" && user.user_metadata.picture.trim().length > 0
+            ? user.user_metadata.picture
+            : null;
 
       const initials = fullName
         .split(/\s+/)
@@ -69,6 +75,7 @@ export function VaultIQShell({ children }: { children: ReactNode }) {
       setUserName(fullName);
       setUserInitials(initials || "VQ");
       setUserEmail(user.email);
+      setUserAvatarUrl(avatarUrl);
     };
 
     hydrateUser();
@@ -81,10 +88,12 @@ export function VaultIQShell({ children }: { children: ReactNode }) {
           <div className="px-6 py-8">
             <Link href="/" className="block w-fit">
               <Image
-                src={vaultLogoWithText}
+                src="/assets/logo/vault-logo-with-text.png"
                 alt="VaultIQ"
                 priority
-                className="h-auto w-36"
+                width={160}
+                height={40}
+                className="h-auto w-32"
               />
             </Link>
           </div>
@@ -110,13 +119,23 @@ export function VaultIQShell({ children }: { children: ReactNode }) {
           </nav>
           <div className="border-t border-border p-4">
             <div className="space-y-3 rounded-lg bg-surface-raised p-4">
-              <div className="flex items-center gap-3">
-                <BankAvatar name={userName} initials={userInitials} tone="primary" />
-                <div className="flex-1">
-                  <p className="text-sm font-medium">{userName}</p>
-                  <p className="text-xs text-muted">{userEmail}</p>
+              <div className="flex items-center gap-3 min-w-0">
+                <BankAvatar
+                  name={userName}
+                  initials={userInitials}
+                  imageSrc={userAvatarUrl}
+                  tone="primary"
+                  className="shrink-0"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium" title={userName}>
+                    {userName}
+                  </p>
+                  <p className="truncate text-xs text-muted" title={userEmail}>
+                    {userEmail}
+                  </p>
                 </div>
-                <Badge variant="success">Pro</Badge>
+                <Badge variant="success" className="shrink-0">Pro</Badge>
               </div>
               <Button
                 type="button"
@@ -145,15 +164,31 @@ export function VaultIQShell({ children }: { children: ReactNode }) {
             <div className="flex items-center justify-between px-4 py-3">
               <Link href="/" className="block">
                 <Image
-                  src={vaultLogoWithText}
+                  src="/assets/logo/vault-logo-with-text.png"
                   alt="VaultIQ"
                   priority
+                  width={144}
+                  height={36}
                   className="h-auto w-28"
                 />
               </Link>
-              <div className="flex items-center gap-2">
-                <Badge variant="success">Pro</Badge>
-                <BankAvatar name={userName} initials={userInitials} tone="primary" className="h-8 w-8" />
+              <div className="flex min-w-0 items-center gap-2">
+                <div className="hidden min-w-0 sm:block">
+                  <p className="truncate text-xs font-medium text-foreground" title={userName}>
+                    {userName}
+                  </p>
+                  <p className="truncate text-2xs text-muted" title={userEmail}>
+                    {userEmail}
+                  </p>
+                </div>
+                <Badge variant="success" className="shrink-0">Pro</Badge>
+                <BankAvatar
+                  name={userName}
+                  initials={userInitials}
+                  imageSrc={userAvatarUrl}
+                  tone="primary"
+                  className="h-8 w-8 shrink-0"
+                />
               </div>
             </div>
           </header>

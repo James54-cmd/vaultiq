@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 
+import { requireAuthenticatedUser } from "@/features/auth/services/auth-session.service";
 import { gmailSyncSchema } from "@/features/transactions/schemas/transaction.schema";
 import { syncGmailTransactions } from "@/features/transactions/services/transaction.service";
 import { isGmailSyncEnabled } from "@/lib/app-config";
+import { createSupabaseRouteHandlerClient } from "@/lib/supabase/route";
 import type { GmailSyncResult } from "@/features/transactions/types/Transaction";
 import type { ApiErrorResponse, ApiSuccessResponse } from "@/types/api";
 
@@ -21,11 +23,13 @@ export async function POST(request: Request) {
     }
 
     const payload = gmailSyncSchema.parse(await request.json());
-    const result = await syncGmailTransactions(payload);
+    const { supabase, applyCookies } = await createSupabaseRouteHandlerClient();
+    const user = await requireAuthenticatedUser(supabase);
+    const result = await syncGmailTransactions(supabase, user.id, payload);
 
-    return NextResponse.json<ApiSuccessResponse<GmailSyncResult>>({
+    return applyCookies(NextResponse.json<ApiSuccessResponse<GmailSyncResult>>({
       data: result,
-    });
+    }));
   } catch (error) {
     if (error instanceof ZodError) {
       return NextResponse.json<ApiErrorResponse>(
@@ -36,6 +40,17 @@ export async function POST(request: Request) {
           },
         },
         { status: 400 }
+      );
+    }
+
+    if (error instanceof Error && error.message === "Authentication required.") {
+      return NextResponse.json<ApiErrorResponse>(
+        {
+          error: {
+            message: error.message,
+          },
+        },
+        { status: 401 }
       );
     }
 

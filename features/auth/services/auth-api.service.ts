@@ -77,7 +77,12 @@ export async function signInWithGoogleRequest(redirectTo = "/") {
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
+      scopes: "openid email profile https://www.googleapis.com/auth/gmail.readonly",
       redirectTo: `${origin}/api/auth/callback?next=${encodeURIComponent(nextPath)}`,
+      queryParams: {
+        access_type: "offline",
+        prompt: "consent",
+      },
     },
   });
 

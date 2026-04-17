@@ -1,6 +1,7 @@
 import "server-only";
 
-import { getSupabaseServerClient } from "@/lib/supabase/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
+
 import {
   budgetQuerySchema,
   createBudgetSchema,
@@ -18,9 +19,11 @@ import type {
 } from "@/features/budgets/types/BudgetRecord";
 import { mapBudgetRecord } from "@/features/budgets/utils/mapBudgetRecord";
 
-export async function listBudgets(query?: unknown): Promise<Budget[]> {
+export async function listBudgets(
+  supabase: SupabaseClient,
+  query?: unknown
+): Promise<Budget[]> {
   const parsedQuery = budgetQuerySchema.parse(query ?? {});
-  const supabase = getSupabaseServerClient();
   let budgetQuery = supabase
     .from("budgets")
     .select("*")
@@ -46,8 +49,11 @@ export async function listBudgets(query?: unknown): Promise<Budget[]> {
   return ((data ?? []) as BudgetRecord[]).map(mapBudgetRecord);
 }
 
-export async function getBudgetSummary(query?: unknown): Promise<BudgetSummary> {
-  const budgets = await listBudgets(query);
+export async function getBudgetSummary(
+  supabase: SupabaseClient,
+  query?: unknown
+): Promise<BudgetSummary> {
+  const budgets = await listBudgets(supabase, query);
   const totalLimitAmount = budgets.reduce((sum, budget) => sum + budget.limitAmount, 0);
   const totalSpentAmount = budgets.reduce((sum, budget) => sum + budget.spentAmount, 0);
 
@@ -59,9 +65,11 @@ export async function getBudgetSummary(query?: unknown): Promise<BudgetSummary> 
   };
 }
 
-export async function createBudget(input: unknown): Promise<Budget> {
+export async function createBudget(
+  supabase: SupabaseClient,
+  input: unknown
+): Promise<Budget> {
   const parsedInput = createBudgetSchema.parse(input);
-  const supabase = getSupabaseServerClient();
 
   const rpcPayload: CreateBudgetRpcParams = {
     p_category: parsedInput.category,
@@ -83,9 +91,12 @@ export async function createBudget(input: unknown): Promise<Budget> {
   return mapBudgetRecord(data as BudgetRecord);
 }
 
-export async function updateBudget(id: string, input: unknown): Promise<Budget | null> {
+export async function updateBudget(
+  supabase: SupabaseClient,
+  id: string,
+  input: unknown
+): Promise<Budget | null> {
   const parsedInput = updateBudgetSchema.parse(input);
-  const supabase = getSupabaseServerClient();
 
   const rpcPayload: UpdateBudgetRpcParams = {
     p_id: id,
@@ -112,9 +123,10 @@ export async function updateBudget(id: string, input: unknown): Promise<Budget |
   return mapBudgetRecord(data as BudgetRecord);
 }
 
-export async function deleteBudget(id: string): Promise<boolean> {
-  const supabase = getSupabaseServerClient();
-
+export async function deleteBudget(
+  supabase: SupabaseClient,
+  id: string
+): Promise<boolean> {
   const rpcPayload: DeleteBudgetRpcParams = {
     p_id: id,
   };

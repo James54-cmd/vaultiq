@@ -10,7 +10,7 @@ export function useTransactionOverview() {
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  useEffect(() => {
+  const reloadOverview = () => {
     startTransition(async () => {
       try {
         setError(null);
@@ -20,11 +20,16 @@ export function useTransactionOverview() {
         setError(loadError instanceof Error ? loadError.message : "Failed to load dashboard overview.");
       }
     });
+  };
+
+  useEffect(() => {
+    reloadOverview();
   }, []);
 
   return {
     overview,
     error,
     isPending,
+    reloadOverview,
   };
 }

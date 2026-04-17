@@ -7,12 +7,15 @@ import { SectionHeader } from "@/components/section-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { GmailConnectionCard } from "@/features/gmail/components/GmailConnectionCard";
+import { useGmailConnection } from "@/features/gmail/hooks/useGmailConnection";
 import { QuickAddTransactionModal } from "@/features/transactions/components/QuickAddTransactionModal";
 import { TransactionTable } from "@/features/transactions/components/TransactionTable";
 import { useTransactionOverview } from "@/features/transactions/hooks/useTransactionOverview";
 import { useTransactions } from "@/features/transactions/hooks/useTransactions";
 import { transactionCategoryColors } from "@/features/transactions/constants/transaction.constants";
 import { formatCurrency } from "@/lib/format";
+import { isGmailSyncEnabled } from "@/lib/app-config";
 
 const summaryCards = [
   {
@@ -33,8 +36,11 @@ const summaryCards = [
 ] as const;
 
 export function TransactionDashboard() {
-  const { overview, error, isPending } = useTransactionOverview();
-  const { createTransaction } = useTransactions();
+  const gmailSyncEnabled = isGmailSyncEnabled();
+  const { status: gmailStatus, error: gmailError, isPending: gmailPending, reloadConnection } =
+    useGmailConnection(gmailSyncEnabled);
+  const { overview, error, isPending, reloadOverview } = useTransactionOverview();
+  const { createTransaction, syncGmailTransactions, isPending: transactionPending } = useTransactions();
 
   return (
     <div className="space-y-6 p-4 md:p-6 xl:p-8">
@@ -42,8 +48,30 @@ export function TransactionDashboard() {
         eyebrow="Dashboard"
         title="Phase one control panel for your transaction flow"
         description="Track logged balance movement, current-month spending, and budget headroom from one place."
-        action={<QuickAddTransactionModal onSubmit={createTransaction} />}
+        action={
+          <QuickAddTransactionModal
+            onSubmit={async (input) => {
+              await createTransaction(input);
+              reloadOverview();
+            }}
+          />
+        }
       />
+
+      {gmailSyncEnabled ? (
+        <GmailConnectionCard
+          status={gmailStatus}
+          isPending={gmailPending}
+          error={gmailError}
+          connectHref="/api/gmail/connect?next=/"
+          syncPending={transactionPending}
+          onSync={async () => {
+            await syncGmailTransactions();
+            reloadConnection();
+            reloadOverview();
+          }}
+        />
+      ) : null}
 
       <div className="grid gap-4 md:grid-cols-3">
         {summaryCards.map((card) => {

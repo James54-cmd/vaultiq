@@ -16,6 +16,9 @@ type TransactionTableProps = {
   isPending?: boolean;
 };
 
+const desktopTransactionTableColumns =
+  "0.9fr 1.15fr 1.9fr 1fr 1fr 0.9fr";
+
 function statusVariant(status: Transaction["status"]) {
   if (status === "completed") return "success";
   if (status === "pending") return "warning";
@@ -35,80 +38,172 @@ export function TransactionTable({
         <p className="text-sm text-muted">{description}</p>
       </CardHeader>
       <CardContent>
-        <div className="overflow-hidden rounded-xl border border-border">
-          <div className="hidden grid-cols-[0.9fr_1.1fr_1.8fr_1fr_1fr_0.9fr] gap-4 border-b border-border bg-background px-6 py-4 text-2xs font-medium uppercase tracking-widest text-muted md:grid">
-            <span>Date</span>
-            <span>Bank</span>
-            <span>Description</span>
-            <span>Category</span>
-            <span>Amount</span>
-            <span>Status</span>
-          </div>
-
-          <div className="divide-y divide-border">
-            {isPending
-              ? Array.from({ length: 6 }).map((_, index) => (
-                  <div
-                    key={index}
-                    className="grid gap-3 px-4 py-4 md:grid-cols-[0.9fr_1.1fr_1.8fr_1fr_1fr_0.9fr] md:px-6"
-                  >
-                    <Skeleton className="h-5 w-24" />
-                    <Skeleton className="h-5 w-28" />
-                    <Skeleton className="h-5 w-full" />
-                    <Skeleton className="h-5 w-24" />
-                    <Skeleton className="h-5 w-24" />
-                    <Skeleton className="h-5 w-20" />
-                  </div>
-                ))
-              : null}
-
-            {!isPending && transactions.length === 0 ? (
-              <div className="flex flex-col items-center justify-center gap-3 px-6 py-12 text-center">
-                <div className="rounded-full border border-secondary/20 bg-secondary/10 p-3 text-secondary">
-                  <span className="text-lg font-semibold">₱</span>
-                </div>
-                <div>
-                  <p className="text-base font-semibold text-foreground">No transactions yet</p>
-                  <p className="text-sm text-muted">Use Quick Add or Gmail sync to start building your ledger.</p>
-                </div>
+        <div
+          data-tutorial="transaction-table"
+          className="overflow-hidden rounded-lg border border-border md:rounded-xl"
+        >
+          <div className="overflow-x-auto rounded-t-lg md:rounded-t-xl">
+            <div className="min-w-[760px]">
+              <div
+                className="hidden rounded-t-lg border-b border-border bg-background px-3 py-3 text-xs font-medium uppercase tracking-widest text-muted md:grid md:items-center md:gap-3 md:rounded-t-xl md:px-4 lg:gap-4 lg:px-6 lg:py-4"
+                style={{ gridTemplateColumns: desktopTransactionTableColumns }}
+              >
+                <div className="whitespace-nowrap text-left">Date</div>
+                <div className="whitespace-nowrap text-left">Bank</div>
+                <div className="whitespace-nowrap text-left">Description</div>
+                <div className="whitespace-nowrap text-left">Category</div>
+                <div className="whitespace-nowrap text-left">Amount</div>
+                <div className="whitespace-nowrap text-left">Status</div>
               </div>
-            ) : null}
 
-            {!isPending
-              ? transactions.map((transaction) => (
-                  <div
-                    key={transaction.id}
-                    className="grid gap-3 px-4 py-4 transition hover:bg-accent-muted md:grid-cols-[0.9fr_1.1fr_1.8fr_1fr_1fr_0.9fr] md:px-6"
-                  >
-                    <div className="text-sm text-muted">
-                      {formatDatePickerLabel(transaction.happenedAt.slice(0, 10))}
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <BankAvatar name={transaction.bankName} initials={transaction.bankInitials} />
-                      <span className="text-sm text-foreground">{transaction.bankName}</span>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-sm font-semibold text-foreground">{transaction.merchant}</p>
-                      <p className="text-xs text-muted">
-                        {transaction.description}
-                        {transaction.referenceNumber ? ` • Ref ${transaction.referenceNumber}` : ""}
-                      </p>
-                    </div>
-                    <div className="text-sm text-muted">{transaction.categoryLabel}</div>
+              <div className="divide-y divide-border">
+                {isPending ? (
+                  Array.from({ length: 6 }).map((_, index) => (
                     <div
-                      className={cn(
-                        "financial-figure text-sm font-semibold",
-                        transaction.signedAmount >= 0 ? "text-primary" : "text-error"
-                      )}
+                      key={index}
+                      className="flex items-center px-4 py-3 md:grid md:items-center md:gap-3 md:px-4 md:py-4 lg:gap-4 lg:px-6"
+                      style={{ gridTemplateColumns: desktopTransactionTableColumns }}
                     >
-                      {formatCurrency(transaction.signedAmount, transaction.currencyCode)}
+                      <div className="flex w-full flex-col gap-3 py-1 md:hidden">
+                        <div className="flex items-center justify-between gap-2">
+                          <Skeleton className="h-3.5 w-24 rounded-md" />
+                          <Skeleton className="h-5 w-16 rounded-full" />
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <Skeleton className="h-10 w-10 shrink-0 rounded-full" />
+                          <div className="min-w-0 flex-1 space-y-2">
+                            <Skeleton className="h-4 w-32 rounded-md" />
+                            <Skeleton className="h-3 w-44 rounded-md" />
+                          </div>
+                        </div>
+                        <div className="flex items-end justify-between gap-4">
+                          <div className="space-y-1">
+                            <Skeleton className="h-3 w-16 rounded-md" />
+                            <Skeleton className="h-4 w-20 rounded-md" />
+                          </div>
+                          <div className="space-y-1 text-right">
+                            <Skeleton className="ml-auto h-3 w-16 rounded-md" />
+                            <Skeleton className="ml-auto h-4 w-24 rounded-md" />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="hidden md:contents">
+                        <Skeleton className="h-4 w-24 rounded-md" />
+                        <div className="flex items-center gap-3">
+                          <Skeleton className="h-10 w-10 shrink-0 rounded-full" />
+                          <Skeleton className="h-4 w-24 rounded-md" />
+                        </div>
+                        <div className="space-y-2">
+                          <Skeleton className="h-4 w-40 rounded-md" />
+                          <Skeleton className="h-3 w-52 rounded-md" />
+                        </div>
+                        <Skeleton className="h-4 w-20 rounded-md" />
+                        <Skeleton className="h-4 w-20 rounded-md" />
+                        <Skeleton className="h-6 w-16 rounded-full" />
+                      </div>
+                    </div>
+                  ))
+                ) : transactions.length === 0 ? (
+                  <div className="flex h-56 flex-col items-center justify-center gap-3 px-6 text-center">
+                    <div className="rounded-full border border-secondary/20 bg-secondary/10 p-3 text-secondary">
+                      <span className="text-lg font-semibold">₱</span>
                     </div>
                     <div>
-                      <Badge variant={statusVariant(transaction.status)}>{transaction.status}</Badge>
+                      <p className="text-base font-semibold text-foreground">No transactions found</p>
+                      <p className="text-sm text-muted">
+                        New activity will appear here once transactions are logged or synced.
+                      </p>
                     </div>
                   </div>
-                ))
-              : null}
+                ) : (
+                  transactions.map((transaction) => (
+                    <div
+                      key={transaction.id}
+                      className="cursor-pointer items-center px-4 py-3 transition hover:bg-accent-muted md:grid md:gap-3 md:px-4 md:py-4 lg:gap-4 lg:px-6"
+                      style={{ gridTemplateColumns: desktopTransactionTableColumns }}
+                    >
+                      <div className="flex flex-col gap-3 md:hidden">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="text-xs font-medium text-muted">
+                            {formatDatePickerLabel(transaction.happenedAt.slice(0, 10))}
+                          </div>
+                          <Badge variant={statusVariant(transaction.status)}>{transaction.status}</Badge>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <BankAvatar name={transaction.bankName} initials={transaction.bankInitials} />
+                          <div className="min-w-0 flex-1">
+                            <div className="truncate text-sm font-semibold text-foreground">
+                              {transaction.merchant}
+                            </div>
+                            <div className="truncate text-xs text-muted">
+                              {transaction.bankName}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-end justify-between gap-4">
+                          <div className="min-w-0">
+                            <div className="truncate text-xs text-muted">
+                              {transaction.description}
+                              {transaction.referenceNumber ? ` • Ref ${transaction.referenceNumber}` : ""}
+                            </div>
+                            <div className="pt-1 text-sm text-muted">
+                              {transaction.categoryLabel}
+                            </div>
+                          </div>
+                          <div
+                            className={cn(
+                              "financial-figure shrink-0 text-sm font-semibold",
+                              transaction.signedAmount >= 0 ? "text-primary" : "text-error"
+                            )}
+                          >
+                            {formatCurrency(transaction.signedAmount, transaction.currencyCode)}
+                          </div>
+                        </div>
+                      </div>
+
+                      <>
+                        <div className="hidden whitespace-nowrap text-left text-sm text-muted md:block">
+                          {formatDatePickerLabel(transaction.happenedAt.slice(0, 10))}
+                        </div>
+
+                        <div className="hidden min-w-0 items-center gap-3 md:flex">
+                          <BankAvatar name={transaction.bankName} initials={transaction.bankInitials} />
+                          <span className="truncate text-sm text-foreground">{transaction.bankName}</span>
+                        </div>
+
+                        <div className="hidden min-w-0 md:block">
+                          <div className="truncate text-sm font-semibold text-foreground">
+                            {transaction.merchant}
+                          </div>
+                          <div className="truncate text-xs text-muted">
+                            {transaction.description}
+                            {transaction.referenceNumber ? ` • Ref ${transaction.referenceNumber}` : ""}
+                          </div>
+                        </div>
+
+                        <div className="hidden truncate text-left text-sm text-muted md:block">
+                          {transaction.categoryLabel}
+                        </div>
+
+                        <div
+                          className={cn(
+                            "hidden financial-figure text-left text-sm font-semibold md:block",
+                            transaction.signedAmount >= 0 ? "text-primary" : "text-error"
+                          )}
+                        >
+                          {formatCurrency(transaction.signedAmount, transaction.currencyCode)}
+                        </div>
+
+                        <div className="hidden text-left md:block">
+                          <Badge variant={statusVariant(transaction.status)}>{transaction.status}</Badge>
+                        </div>
+                      </>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </CardContent>

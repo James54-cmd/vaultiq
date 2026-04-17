@@ -1,7 +1,5 @@
 import "server-only";
 
-import { getGmailEnv } from "@/lib/gmail/config";
-
 const GMAIL_API_BASE_URL = "https://gmail.googleapis.com/gmail/v1/users/me";
 
 type GmailMessageListResponse = {
@@ -40,16 +38,15 @@ export type GmailMessageDetail = {
   };
 };
 
-function buildHeaders() {
-  const env = getGmailEnv();
-
+function buildHeaders(accessToken: string) {
   return {
-    Authorization: `Bearer ${env.GMAIL_ACCESS_TOKEN}`,
+    Authorization: `Bearer ${accessToken}`,
     "Content-Type": "application/json",
   };
 }
 
 export function getDefaultGmailSyncSettings() {
+  const { getGmailEnv } = require("@/lib/gmail/config");
   const env = getGmailEnv();
 
   return {
@@ -58,7 +55,11 @@ export function getDefaultGmailSyncSettings() {
   };
 }
 
-export async function listGmailMessages(query: string, maxResults: number) {
+export async function listGmailMessages(
+  accessToken: string,
+  query: string,
+  maxResults: number
+) {
   const searchParams = new URLSearchParams({
     q: query,
     maxResults: String(maxResults),
@@ -66,7 +67,7 @@ export async function listGmailMessages(query: string, maxResults: number) {
 
   const response = await fetch(`${GMAIL_API_BASE_URL}/messages?${searchParams.toString()}`, {
     method: "GET",
-    headers: buildHeaders(),
+    headers: buildHeaders(accessToken),
     cache: "no-store",
   });
 
@@ -78,7 +79,7 @@ export async function listGmailMessages(query: string, maxResults: number) {
   return payload.messages ?? [];
 }
 
-export async function getGmailMessage(messageId: string) {
+export async function getGmailMessage(accessToken: string, messageId: string) {
   const searchParams = new URLSearchParams({
     format: "full",
   });
@@ -87,7 +88,7 @@ export async function getGmailMessage(messageId: string) {
     `${GMAIL_API_BASE_URL}/messages/${messageId}?${searchParams.toString()}`,
     {
       method: "GET",
-      headers: buildHeaders(),
+      headers: buildHeaders(accessToken),
       cache: "no-store",
     }
   );

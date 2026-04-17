@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { GalleryVerticalEnd } from "lucide-react"
+import Image from "next/image"
 import { useSearchParams } from "next/navigation"
 import { useState } from "react"
 
@@ -11,20 +11,25 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { FieldError } from "@/components/ui/field-error"
 import { useAuthForm } from "@/features/auth/hooks/useAuthForm"
-import type { SignInInput } from "@/features/auth/types/Auth"
+import type { SignInInput, SignUpInput } from "@/features/auth/types/Auth"
 
 export function LoginForm({
+  mode = "sign-in",
   className,
   ...props
-}: React.ComponentPropsWithoutRef<"div">) {
+}: React.ComponentPropsWithoutRef<"div"> & {
+  mode?: "sign-in" | "sign-up"
+}) {
   const searchParams = useSearchParams()
   const registered = searchParams.get("registered") === "1"
   const oauthError = searchParams.get("error")
-  const [values, setValues] = useState<SignInInput>({
+  const [values, setValues] = useState<SignInInput & Partial<SignUpInput>>({
     email: "",
     password: "",
+    fullName: "",
+    confirmPassword: "",
   })
-  const { submit, signInWithGoogle, isPending, fieldErrors, formError } = useAuthForm("sign-in")
+  const { submit, signInWithGoogle, isPending, fieldErrors, formError } = useAuthForm(mode)
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
@@ -52,21 +57,52 @@ export function LoginForm({
               href="/"
               className="flex flex-col items-center gap-2 font-medium"
             >
-              <div className="flex h-8 w-8 items-center justify-center rounded-md text-primary">
-                <GalleryVerticalEnd className="size-6" />
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-secondary/20 bg-secondary/10">
+                <Image
+                  src="/assets/logo/vault-logo-icon.png"
+                  alt="VaultIQ Logo"
+                  width={34}
+                  height={34}
+                  className="h-8 w-8"
+                />
               </div>
               <span className="sr-only">VaultIQ</span>
             </Link>
-            <h1 className="text-xl font-bold text-foreground">Welcome to VaultIQ</h1>
+            <h1 className="text-xl font-bold text-foreground">
+              {mode === "sign-in" ? "Welcome to VaultIQ" : "Create your VaultIQ account"}
+            </h1>
             <div className="text-center text-sm text-muted">
-              Don&apos;t have an account?{" "}
-              <Link href="/signup" className="underline underline-offset-4 text-foreground">
-                Sign up
+              {mode === "sign-in" ? "Don&apos;t have an account?" : "Already have an account?"}{" "}
+              <Link
+                href={mode === "sign-in" ? "/signup" : "/login"}
+                className="underline underline-offset-4 text-foreground"
+              >
+                {mode === "sign-in" ? "Sign up" : "Sign in"}
               </Link>
             </div>
           </div>
 
           <div className="flex flex-col gap-4">
+            {mode === "sign-up" ? (
+              <div className="grid gap-2">
+                <Label htmlFor="full-name" className="text-foreground">Full Name</Label>
+                <Input
+                  id="full-name"
+                  placeholder="Juan Dela Cruz"
+                  required
+                  value={values.fullName ?? ""}
+                  onChange={(event) =>
+                    setValues((current) => ({
+                      ...current,
+                      fullName: event.target.value,
+                    }))
+                  }
+                  className="border-border bg-surface text-foreground placeholder:text-muted focus-visible:ring-secondary"
+                />
+                <FieldError message={fieldErrors.fullName?.[0]} />
+              </div>
+            ) : null}
+
             <div className="grid gap-2">
               <Label htmlFor="email" className="text-foreground">Email</Label>
               <Input
@@ -105,10 +141,37 @@ export function LoginForm({
               <FieldError message={fieldErrors.password?.[0]} />
             </div>
 
+            {mode === "sign-up" ? (
+              <div className="grid gap-2">
+                <Label htmlFor="confirm-password" className="text-foreground">Confirm Password</Label>
+                <Input
+                  id="confirm-password"
+                  type="password"
+                  placeholder="Repeat your password"
+                  required
+                  value={values.confirmPassword ?? ""}
+                  onChange={(event) =>
+                    setValues((current) => ({
+                      ...current,
+                      confirmPassword: event.target.value,
+                    }))
+                  }
+                  className="border-border bg-surface text-foreground placeholder:text-muted focus-visible:ring-secondary"
+                />
+                <FieldError message={fieldErrors.confirmPassword?.[0]} />
+              </div>
+            ) : null}
+
             {formError ? <FieldError message={formError} /> : null}
 
             <Button type="submit" className="w-full" disabled={isPending}>
-              {isPending ? "Signing In..." : "Login"}
+              {isPending
+                ? mode === "sign-in"
+                  ? "Signing In..."
+                  : "Creating Account..."
+                : mode === "sign-in"
+                  ? "Login"
+                  : "Create Account"}
             </Button>
           </div>
 
@@ -118,16 +181,7 @@ export function LoginForm({
             </span>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Button variant="outline" className="w-full border-border bg-surface text-foreground hover:bg-accent-muted hover:text-foreground" type="button" disabled>
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="h-4 w-4">
-                <path
-                  d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701"
-                  fill="currentColor"
-                />
-              </svg>
-              Apple Soon
-            </Button>
+          <div className="grid gap-4">
             <Button
               variant="outline"
               className="w-full border-border bg-surface text-foreground hover:bg-accent-muted hover:text-foreground"
@@ -137,10 +191,22 @@ export function LoginForm({
                 await signInWithGoogle()
               }}
             >
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="h-4 w-4">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
                 <path
-                  d="M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.133 12.48 5.867 .307 5.387.307 12 5.56 12 12.173c3.573 6.267-1.173 8.373-3.36 2.16-2.16 2.84-5.213 2.84-7.667 0-.76-.053-1.467-.173-2.053H12.48z"
-                  fill="currentColor"
+                  fill="#EA4335"
+                  d="M12 10.2v3.9h5.5c-.2 1.3-.9 2.4-1.9 3.2l3.1 2.4c1.8-1.7 2.8-4.1 2.8-7 0-.7-.1-1.4-.2-2H12Z"
+                />
+                <path
+                  fill="#34A853"
+                  d="M12 22c2.4 0 4.5-.8 6-2.3l-3.1-2.4c-.9.6-1.9.9-2.9.9-2.2 0-4.1-1.5-4.8-3.5l-3.2 2.5C5.5 20 8.5 22 12 22Z"
+                />
+                <path
+                  fill="#FBBC05"
+                  d="M7.2 14.7c-.2-.6-.3-1.2-.3-1.9s.1-1.3.3-1.9l-3.2-2.5C3.4 9.7 3 11.1 3 12.8s.4 3.1 1 4.4l3.2-2.5Z"
+                />
+                <path
+                  fill="#4285F4"
+                  d="M12 7.4c1.3 0 2.5.5 3.5 1.4l2.6-2.6C16.5 4.7 14.4 4 12 4 8.5 4 5.5 6 4 9.1l3.2 2.5c.7-2.1 2.6-3.6 4.8-3.6Z"
                 />
               </svg>
               Continue with Google

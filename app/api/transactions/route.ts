@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 
+import { requireAuthenticatedUser } from "@/features/auth/services/auth-session.service";
 import { createManualTransactionSchema, transactionQuerySchema } from "@/features/transactions/schemas/transaction.schema";
 import {
   createManualTransaction,
   listTransactions,
 } from "@/features/transactions/services/transaction.service";
+import { createSupabaseRouteHandlerClient } from "@/lib/supabase/route";
 import type {
   TransactionListResponse,
 } from "@/features/transactions/types/Transaction";
@@ -22,7 +24,9 @@ export async function GET(request: Request) {
       search: searchParams.get("search") ?? undefined,
     });
 
-    const result = await listTransactions(query);
+    const { supabase } = await createSupabaseRouteHandlerClient();
+    await requireAuthenticatedUser(supabase);
+    const result = await listTransactions(supabase, query);
 
     return NextResponse.json<ApiSuccessResponse<TransactionListResponse>>({
       data: result,
@@ -35,12 +39,14 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const payload = createManualTransactionSchema.parse(await request.json());
-    const transaction = await createManualTransaction(payload);
+    const { supabase, applyCookies } = await createSupabaseRouteHandlerClient();
+    await requireAuthenticatedUser(supabase);
+    const transaction = await createManualTransaction(supabase, payload);
 
-    return NextResponse.json<ApiSuccessResponse<typeof transaction>>(
+    return applyCookies(NextResponse.json<ApiSuccessResponse<typeof transaction>>(
       { data: transaction },
       { status: 201 }
-    );
+    ));
   } catch (error) {
     return handleApiError(error);
   }
@@ -60,6 +66,17 @@ function handleApiError(error: unknown) {
         },
       },
       { status: 400 }
+    );
+  }
+
+  if (error instanceof Error && error.message === "Authentication required.") {
+    return NextResponse.json<ApiErrorResponse>(
+      {
+        error: {
+          message: error.message,
+        },
+      },
+      { status: 401 }
     );
   }
 
