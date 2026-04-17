@@ -122,9 +122,8 @@ export function BudgetModal({ budget, onSubmit }: BudgetModalProps) {
     >
       <DialogTrigger asChild>
         {budget ? (
-          <Button variant="secondary">
-            <Pencil className="mr-2 h-4 w-4" />
-            Edit
+          <Button variant="secondary" size="icon" aria-label="Edit Budget">
+            <Pencil className="h-4 w-4" />
           </Button>
         ) : (
           <Button>

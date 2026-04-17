@@ -1,7 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import { Trash2 } from "lucide-react";
 
+import { ConfirmationModal } from "@/components/confirmation-modal";
 import { SectionHeader } from "@/components/section-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -33,6 +35,7 @@ function getVariant(percent: number): "success" | "warning" | "error" {
 
 export function BudgetsView() {
   const { budgets, summary, period, error, isPending, setPeriod, createBudget, updateBudget, deleteBudget } = useBudgets();
+  const [budgetToDelete, setBudgetToDelete] = useState<{ id: string; category: string } | null>(null);
 
   return (
     <div className="space-y-6 p-4 md:p-6 xl:p-8">
@@ -91,6 +94,27 @@ export function BudgetsView() {
 
       {error ? <p className="text-sm text-error">{error}</p> : null}
 
+      <ConfirmationModal
+        open={budgetToDelete !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setBudgetToDelete(null);
+          }
+        }}
+        title="Delete Budget"
+        description={
+          budgetToDelete
+            ? `This will permanently remove the ${budgetToDelete.category} budget from VaultIQ.`
+            : "This action cannot be undone."
+        }
+        confirmLabel="Delete Budget"
+        onConfirm={async () => {
+          if (budgetToDelete) {
+            await deleteBudget(budgetToDelete.id);
+          }
+        }}
+      />
+
       <div className="grid gap-4 lg:grid-cols-2">
         {isPending && budgets.length === 0
           ? Array.from({ length: 4 }).map((_, index) => (
@@ -116,10 +140,11 @@ export function BudgetsView() {
                           type="button"
                           variant="secondary"
                           className="px-3"
-                          onClick={async () => {
-                            if (window.confirm(`Delete ${item.category} budget?`)) {
-                              await deleteBudget(item.id);
-                            }
+                          onClick={() => {
+                            setBudgetToDelete({
+                              id: item.id,
+                              category: item.category,
+                            });
                           }}
                         >
                           <Trash2 className="h-4 w-4" />
