@@ -1,4 +1,4 @@
-export function formatCurrency(value: number, currency: "PHP" | "USD" = "PHP") {
+export function formatCurrency(value: number, currency = "PHP") {
   return new Intl.NumberFormat("en-PH", {
     style: "currency",
     currency,
@@ -7,7 +7,7 @@ export function formatCurrency(value: number, currency: "PHP" | "USD" = "PHP") {
   }).format(value);
 }
 
-export function formatCompactCurrency(value: number, currency: "PHP" | "USD" = "PHP") {
+export function formatCompactCurrency(value: number, currency = "PHP") {
   return new Intl.NumberFormat("en-PH", {
     style: "currency",
     currency,

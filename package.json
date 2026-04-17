@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "gmail:token": "node scripts/get-gmail-token.js",
     "prepare": "husky install",
     "test": "echo \"No tests specified\" && exit 0"
   },
@@ -22,6 +23,7 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "framer-motion": "^12.10.5",
+    "googleapis": "^171.4.0",
     "graphql": "^16.13.2",
     "lucide-react": "^0.511.0",
     "next": "^15.3.2",

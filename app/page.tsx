@@ -1,10 +1,10 @@
-import { DashboardPage } from "@/components/pages/dashboard-page";
+import { TransactionDashboard } from "@/features/transactions";
 import { VaultIQShell } from "@/components/vaultiq-shell";
 
 export default function Page() {
   return (
     <VaultIQShell>
-      <DashboardPage />
+      <TransactionDashboard />
     </VaultIQShell>
   );
 }
