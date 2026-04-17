@@ -6,6 +6,9 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "VaultIQ",
   description: "Every peso. Every account. One view.",
+  icons: {
+    icon: "/assets/logo/vault-logo-icon.png",
+  },
 };
 
 export default function RootLayout({

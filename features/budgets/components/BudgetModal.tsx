@@ -133,11 +133,13 @@ export function BudgetModal({ budget, onSubmit }: BudgetModalProps) {
         )}
         
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="max-h-[70dvh] min-h-[10dvh] w-full overflow-y-auto sm:max-h-[60vh] sm:min-h-[20vh] p-4 sm:p-8 rounded-xl">
         <DialogHeader>
           <DialogTitle>{budget ? "Update Budget" : "Create Budget"}</DialogTitle>
           <DialogDescription>
-            Validate the budget locally with Zod before it reaches the API or RPC layer.
+            {budget
+              ? "Update the details for this budget."
+              : "Fill out the form below to add a new budget."}
           </DialogDescription>
         </DialogHeader>
 
