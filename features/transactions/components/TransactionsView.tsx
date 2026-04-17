@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Search } from "lucide-react";
 
@@ -15,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import { QuickAddTransactionModal } from "@/features/transactions/components/QuickAddTransactionModal";
 import { TransactionTable } from "@/features/transactions/components/TransactionTable";
+import { GmailSyncSummaryPanel } from "@/features/transactions/components/GmailSyncSummaryPanel";
 import { GmailConnectionCard } from "@/features/gmail/components/GmailConnectionCard";
 import { useGmailConnection } from "@/features/gmail/hooks/useGmailConnection";
 import {
@@ -24,13 +26,19 @@ import {
   transactionStatuses,
 } from "@/features/transactions/constants/transaction.constants";
 import { useTransactions } from "@/features/transactions/hooks/useTransactions";
-import type { TransactionCategory, TransactionDirection, TransactionStatus } from "@/features/transactions/types/Transaction";
+import type {
+  GmailSyncResult,
+  TransactionCategory,
+  TransactionDirection,
+  TransactionStatus,
+} from "@/features/transactions/types/Transaction";
 import { formatTransactionLabel } from "@/features/transactions/utils/formatTransactionLabel";
 import { formatCurrency } from "@/lib/format";
 import { isGmailSyncEnabled } from "@/lib/app-config";
 
 export function TransactionsView() {
   const searchParams = useSearchParams();
+  const [gmailSyncResult, setGmailSyncResult] = useState<GmailSyncResult | null>(null);
   const gmailSyncEnabled = isGmailSyncEnabled();
   const { status: gmailStatus, error: gmailError, isPending: gmailPending, reloadConnection } =
     useGmailConnection(gmailSyncEnabled);
@@ -97,7 +105,8 @@ export function TransactionsView() {
           connectHref="/api/gmail/connect?next=/transactions"
           syncPending={isPending}
           onSync={async () => {
-            await syncGmailTransactions();
+            const result = await syncGmailTransactions();
+            setGmailSyncResult(result);
             reloadConnection();
           }}
         />
@@ -109,6 +118,8 @@ export function TransactionsView() {
           </p>
         </div>
       )}
+
+      {gmailSyncResult ? <GmailSyncSummaryPanel result={gmailSyncResult} /> : null}
 
       <div className="rounded-xl border border-border bg-surface px-5 py-5">
         <div className="grid gap-3 lg:grid-cols-[1.6fr_repeat(4,minmax(0,1fr))]">

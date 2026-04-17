@@ -115,8 +115,22 @@ const transactionGraphqlSchema = buildSchema(`
   }
 
   type GmailSyncResult {
+    query: String!
+    daysBack: Int!
+    pagesFetched: Int!
+    matchedMessageCount: Int!
+    parsedMessageCount: Int!
     insertedCount: Int!
+    skippedMessageCount: Int!
+    skippedMessages: [GmailSyncSkippedMessage!]!
     transactions: [Transaction!]!
+  }
+
+  type GmailSyncSkippedMessage {
+    gmailMessageId: String!
+    subject: String!
+    from: String!
+    reason: String!
   }
 
   input CreateManualTransactionInput {
@@ -136,6 +150,8 @@ const transactionGraphqlSchema = buildSchema(`
   input GmailSyncInput {
     query: String
     maxResults: Int
+    maxPages: Int
+    daysBack: Int
   }
 
   type Query {

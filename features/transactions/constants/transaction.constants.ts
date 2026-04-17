@@ -40,6 +40,7 @@ export const supportedBanks = [
   "Tonik",
   "GoTyme",
   "SeaBank",
+  "MariBank",
   "OwnBank",
   "CIMB",
   "ING Philippines",

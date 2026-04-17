@@ -110,10 +110,10 @@ export async function syncGmailTransactions(
   userId: string,
   input?: unknown
 ): Promise<GmailSyncResult> {
-  const parsedTransactions = await fetchParsedGmailTransactions(supabase, userId, input);
+  const parsedTransactionsResult = await fetchParsedGmailTransactions(supabase, userId, input);
   const createdTransactions = [];
 
-  for (const transaction of parsedTransactions) {
+  for (const transaction of parsedTransactionsResult.parsedTransactions) {
     const rpcPayload: IngestGmailTransactionRpcParams = {
       p_direction: transaction.direction,
       p_amount: transaction.amount,
@@ -139,7 +139,14 @@ export async function syncGmailTransactions(
   }
 
   return {
+    query: parsedTransactionsResult.query,
+    daysBack: parsedTransactionsResult.daysBack,
+    pagesFetched: parsedTransactionsResult.pagesFetched,
+    matchedMessageCount: parsedTransactionsResult.matchedMessageCount,
+    parsedMessageCount: parsedTransactionsResult.parsedTransactions.length,
     insertedCount: createdTransactions.length,
+    skippedMessageCount: parsedTransactionsResult.skippedMessages.length,
+    skippedMessages: parsedTransactionsResult.skippedMessages.slice(0, 5),
     transactions: createdTransactions,
   };
 }

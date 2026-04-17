@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { ArrowDownCircle, PiggyBank, Wallet } from "lucide-react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 
@@ -9,11 +10,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { GmailConnectionCard } from "@/features/gmail/components/GmailConnectionCard";
 import { useGmailConnection } from "@/features/gmail/hooks/useGmailConnection";
+import { GmailSyncSummaryPanel } from "@/features/transactions/components/GmailSyncSummaryPanel";
 import { QuickAddTransactionModal } from "@/features/transactions/components/QuickAddTransactionModal";
 import { TransactionTable } from "@/features/transactions/components/TransactionTable";
 import { useTransactionOverview } from "@/features/transactions/hooks/useTransactionOverview";
 import { useTransactions } from "@/features/transactions/hooks/useTransactions";
 import { transactionCategoryColors } from "@/features/transactions/constants/transaction.constants";
+import type { GmailSyncResult } from "@/features/transactions/types/Transaction";
 import { formatCurrency } from "@/lib/format";
 import { isGmailSyncEnabled } from "@/lib/app-config";
 
@@ -36,6 +39,7 @@ const summaryCards = [
 ] as const;
 
 export function TransactionDashboard() {
+  const [gmailSyncResult, setGmailSyncResult] = useState<GmailSyncResult | null>(null);
   const gmailSyncEnabled = isGmailSyncEnabled();
   const { status: gmailStatus, error: gmailError, isPending: gmailPending, reloadConnection } =
     useGmailConnection(gmailSyncEnabled);
@@ -66,12 +70,15 @@ export function TransactionDashboard() {
           connectHref="/api/gmail/connect?next=/"
           syncPending={transactionPending}
           onSync={async () => {
-            await syncGmailTransactions();
+            const result = await syncGmailTransactions();
+            setGmailSyncResult(result);
             reloadConnection();
             reloadOverview();
           }}
         />
       ) : null}
+
+      {gmailSyncResult ? <GmailSyncSummaryPanel result={gmailSyncResult} /> : null}
 
       <div className="grid gap-4 md:grid-cols-3">
         {summaryCards.map((card) => {

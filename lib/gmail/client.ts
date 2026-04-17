@@ -7,6 +7,17 @@ type GmailMessageListResponse = {
     id: string;
     threadId: string;
   }>;
+  nextPageToken?: string;
+  resultSizeEstimate?: number;
+};
+
+export type GmailMessageListPage = {
+  messages: Array<{
+    id: string;
+    threadId: string;
+  }>;
+  nextPageToken: string | null;
+  resultSizeEstimate: number | null;
 };
 
 export type GmailMessageDetail = {
@@ -45,25 +56,19 @@ function buildHeaders(accessToken: string) {
   };
 }
 
-export function getDefaultGmailSyncSettings() {
-  const { getGmailEnv } = require("@/lib/gmail/config");
-  const env = getGmailEnv();
-
-  return {
-    query: env.GMAIL_SYNC_QUERY,
-    maxResults: env.GMAIL_SYNC_MAX_RESULTS,
-  };
-}
-
 export async function listGmailMessages(
   accessToken: string,
   query: string,
-  maxResults: number
-) {
-  const searchParams = new URLSearchParams({
-    q: query,
-    maxResults: String(maxResults),
-  });
+  maxResults: number,
+  pageToken?: string | null
+): Promise<GmailMessageListPage> {
+  const searchParams = new URLSearchParams();
+  searchParams.set("q", query);
+  searchParams.set("maxResults", String(maxResults));
+
+  if (pageToken) {
+    searchParams.set("pageToken", pageToken);
+  }
 
   const response = await fetch(`${GMAIL_API_BASE_URL}/messages?${searchParams.toString()}`, {
     method: "GET",
@@ -76,7 +81,11 @@ export async function listGmailMessages(
   }
 
   const payload = (await response.json()) as GmailMessageListResponse;
-  return payload.messages ?? [];
+  return {
+    messages: payload.messages ?? [],
+    nextPageToken: payload.nextPageToken ?? null,
+    resultSizeEstimate: typeof payload.resultSizeEstimate === "number" ? payload.resultSizeEstimate : null,
+  };
 }
 
 export async function getGmailMessage(accessToken: string, messageId: string) {

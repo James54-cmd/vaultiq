@@ -115,5 +115,7 @@ export const transactionQuerySchema = z.object({
 
 export const gmailSyncSchema = z.object({
   query: z.string().trim().min(1).optional(),
-  maxResults: z.number().int().min(1).max(25).optional(),
+  maxResults: z.number().int().min(1).max(50).optional(),
+  maxPages: z.number().int().min(1).max(20).optional(),
+  daysBack: z.number().int().min(1).max(730).optional(),
 });

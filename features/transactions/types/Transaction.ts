@@ -53,7 +53,57 @@ export type TransactionOverview = {
   recentTransactions: Transaction[];
 };
 
+export type ParsedGmailTransaction = {
+  source: "gmail";
+  direction: TransactionDirection;
+  amount: number;
+  currencyCode: string;
+  bankName: string;
+  merchant: string;
+  description: string;
+  category: TransactionCategory;
+  referenceNumber: string | null;
+  status: TransactionStatus;
+  happenedAt: string;
+  gmailMessageId: string;
+  gmailThreadId: string | null;
+  rawPayload: Record<string, unknown>;
+};
+
+export type GmailSyncSkippedMessage = {
+  gmailMessageId: string;
+  subject: string;
+  from: string;
+  reason: string;
+};
+
+export type GmailPaymentEmailParseResult =
+  | {
+      kind: "parsed";
+      transaction: ParsedGmailTransaction;
+    }
+  | {
+      kind: "skipped";
+      skippedMessage: GmailSyncSkippedMessage;
+    };
+
+export type ParsedGmailTransactionsResult = {
+  query: string;
+  daysBack: number;
+  pagesFetched: number;
+  matchedMessageCount: number;
+  parsedTransactions: ParsedGmailTransaction[];
+  skippedMessages: GmailSyncSkippedMessage[];
+};
+
 export type GmailSyncResult = {
+  query: string;
+  daysBack: number;
+  pagesFetched: number;
+  matchedMessageCount: number;
+  parsedMessageCount: number;
   insertedCount: number;
+  skippedMessageCount: number;
+  skippedMessages: GmailSyncSkippedMessage[];
   transactions: Transaction[];
 };

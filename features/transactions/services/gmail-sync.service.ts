@@ -2,34 +2,96 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { getDefaultGmailSyncSettings, getGmailMessage, listGmailMessages } from "@/lib/gmail/client";
+import { getGmailMessage, listGmailMessages } from "@/lib/gmail/client";
 import { getValidGmailAccessToken, markGmailConnectionSynced } from "@/features/gmail/services/gmail-connection.service";
+import {
+  defaultGmailSyncBaseQuery,
+  defaultGmailSyncLookbackDays,
+  defaultGmailSyncMaxPages,
+  defaultGmailSyncMaxResultsPerPage,
+} from "@/features/transactions/constants/gmail-sync.constants";
 import { gmailSyncSchema } from "@/features/transactions/schemas/transaction.schema";
 import { parseGmailPaymentEmail } from "@/features/transactions/utils/parseGmailPaymentEmail";
+import type { ParsedGmailTransactionsResult } from "@/features/transactions/types/Transaction";
+import { getGmailEnv } from "@/lib/gmail/config";
+
+function buildGmailSyncQuery(baseQuery: string, daysBack: number) {
+  const trimmedQuery = baseQuery.trim();
+
+  if (/\b(?:newer_than|older_than|after:|before:)\b/i.test(trimmedQuery)) {
+    return trimmedQuery;
+  }
+
+  return `(${trimmedQuery}) newer_than:${daysBack}d`;
+}
 
 export async function fetchParsedGmailTransactions(
   supabase: SupabaseClient,
   userId: string,
   input?: unknown
-) {
-  const defaults = getDefaultGmailSyncSettings();
-  const parsedInput = gmailSyncSchema.parse({
-    query: defaults.query,
-    maxResults: defaults.maxResults,
-    ...(typeof input === "object" && input !== null ? input : {}),
-  });
+): Promise<ParsedGmailTransactionsResult> {
+  const env = getGmailEnv();
+  const parsedInput = gmailSyncSchema.parse(
+    typeof input === "object" && input !== null ? input : {}
+  );
+  const daysBack = parsedInput.daysBack ?? defaultGmailSyncLookbackDays;
+  const maxResults = parsedInput.maxResults ?? env.GMAIL_SYNC_MAX_RESULTS ?? defaultGmailSyncMaxResultsPerPage;
+  const maxPages = parsedInput.maxPages ?? defaultGmailSyncMaxPages;
+  const query = buildGmailSyncQuery(parsedInput.query ?? defaultGmailSyncBaseQuery, daysBack);
 
   const { connection, accessToken } = await getValidGmailAccessToken(supabase, userId);
-  const messages = await listGmailMessages(
-    accessToken,
-    parsedInput.query ?? defaults.query,
-    parsedInput.maxResults ?? defaults.maxResults
-  );
+  const messageMap = new Map<string, { id: string; threadId: string }>();
+  let nextPageToken: string | null = null;
+  let pagesFetched = 0;
+
+  for (let pageIndex = 0; pageIndex < maxPages; pageIndex += 1) {
+    const page = await listGmailMessages(
+      accessToken,
+      query,
+      maxResults,
+      pageIndex === 0 ? null : nextPageToken
+    );
+
+    pagesFetched += 1;
+
+    page.messages.forEach((message) => {
+      if (!messageMap.has(message.id)) {
+        messageMap.set(message.id, message);
+      }
+    });
+
+    nextPageToken = page.nextPageToken;
+
+    if (!nextPageToken || page.messages.length === 0) {
+      break;
+    }
+  }
+
+  const messages = Array.from(messageMap.values());
   const details = await Promise.all(messages.map((message) => getGmailMessage(accessToken, message.id)));
 
   await markGmailConnectionSynced(supabase, connection.id);
 
-  return details
-    .map(parseGmailPaymentEmail)
-    .filter((transaction): transaction is NonNullable<typeof transaction> => Boolean(transaction));
+  const parsedTransactions = [];
+  const skippedMessages = [];
+
+  for (const detail of details) {
+    const result = parseGmailPaymentEmail(detail);
+
+    if (result.kind === "parsed") {
+      parsedTransactions.push(result.transaction);
+      continue;
+    }
+
+    skippedMessages.push(result.skippedMessage);
+  }
+
+  return {
+    query,
+    daysBack,
+    pagesFetched,
+    matchedMessageCount: messages.length,
+    parsedTransactions,
+    skippedMessages,
+  };
 }

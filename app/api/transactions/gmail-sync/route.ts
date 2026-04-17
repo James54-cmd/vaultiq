@@ -54,6 +54,21 @@ export async function POST(request: Request) {
       );
     }
 
+    if (
+      error instanceof Error &&
+      /no unique or exclusion constraint matching the ON CONFLICT specification/i.test(error.message)
+    ) {
+      return NextResponse.json<ApiErrorResponse>(
+        {
+          error: {
+            message:
+              "Gmail sync database migration is missing. Apply the latest Supabase migration for the transactions conflict constraint, then try syncing again.",
+          },
+        },
+        { status: 500 }
+      );
+    }
+
     return NextResponse.json<ApiErrorResponse>(
       {
         error: {
