@@ -44,7 +44,7 @@ const budgetPersistedSchema = z.object({
 });
 
 const createBudgetObjectSchema = budgetBaseSchema.extend({
-  notes: trimmedOptionalNoteSchema.optional(),
+  notes: trimmedOptionalNoteSchema.nullish(),
 });
 
 const updateBudgetObjectSchema = createBudgetObjectSchema.partial();

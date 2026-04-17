@@ -13,6 +13,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { BudgetModal } from "@/features/budgets/components/BudgetModal";
 import { useBudgets } from "@/features/budgets/hooks/useBudgets";
+import { formatBudgetLabel } from "@/features/budgets/utils/formatBudgetLabel";
 import { formatCurrency } from "@/lib/format";
 
 function getTone(percent: number) {
@@ -46,9 +47,9 @@ export function BudgetsView() {
                 <SelectValue placeholder="Select period" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="weekly">Weekly</SelectItem>
-                <SelectItem value="monthly">Monthly</SelectItem>
-                <SelectItem value="yearly">Yearly</SelectItem>
+                <SelectItem value="weekly">{formatBudgetLabel("weekly")}</SelectItem>
+                <SelectItem value="monthly">{formatBudgetLabel("monthly")}</SelectItem>
+                <SelectItem value="yearly">{formatBudgetLabel("yearly")}</SelectItem>
               </SelectContent>
             </Select>
             <BudgetModal onCreate={createBudget} />

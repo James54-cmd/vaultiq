@@ -7,7 +7,10 @@ import { z } from "zod";
 import { budgetPeriods } from "@/features/budgets/constants/budget.constants";
 import { createBudgetFormSchema } from "@/features/budgets/schemas/budget.schema";
 import type { CreateBudgetFormInput, CreateBudgetInput } from "@/features/budgets/types/Budget";
+import { formatBudgetLabel } from "@/features/budgets/utils/formatBudgetLabel";
+import { ApiValidationError } from "@/lib/api-errors";
 import { Button } from "@/components/ui/button";
+import { DatePicker } from "@/components/ui/date-picker";
 import {
   Dialog,
   DialogContent,
@@ -16,6 +19,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { FieldError } from "@/components/ui/field-error";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -46,6 +50,7 @@ export function BudgetModal({ onCreate }: BudgetModalProps) {
   const [open, setOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [formState, setFormState] = useState<CreateBudgetFormInput>(initialFormState);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -54,14 +59,29 @@ export function BudgetModal({ onCreate }: BudgetModalProps) {
     try {
       setIsSubmitting(true);
       setError(null);
+      setFieldErrors({});
       const payload = createBudgetFormSchema.parse(formState);
       await onCreate(payload);
       setFormState(initialFormState);
       setOpen(false);
     } catch (submitError) {
       if (submitError instanceof z.ZodError) {
-        const firstIssue = submitError.issues[0];
-        setError(firstIssue?.message ?? "Invalid budget payload.");
+        const flattened = submitError.flatten();
+        const nextFieldErrors = Object.fromEntries(
+          Object.entries(flattened.fieldErrors).flatMap(([key, value]) =>
+            value && value[0] ? [[key, value[0]]] : []
+          )
+        );
+        setFieldErrors(nextFieldErrors);
+        setError(flattened.formErrors[0] ?? null);
+      } else if (submitError instanceof ApiValidationError) {
+        const nextFieldErrors = Object.fromEntries(
+          Object.entries(submitError.fieldErrors ?? {}).flatMap(([key, value]) =>
+            value && value[0] ? [[key, value[0]]] : []
+          )
+        );
+        setFieldErrors(nextFieldErrors);
+        setError(submitError.formErrors?.[0] ?? submitError.message);
       } else {
         setError(submitError instanceof Error ? submitError.message : "Unable to create budget.");
       }
@@ -97,6 +117,7 @@ export function BudgetModal({ onCreate }: BudgetModalProps) {
               }
               placeholder="Food, Housing, Utilities"
             />
+            <FieldError message={fieldErrors.category} />
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -117,11 +138,12 @@ export function BudgetModal({ onCreate }: BudgetModalProps) {
                 <SelectContent>
                   {budgetPeriods.map((period) => (
                     <SelectItem key={period} value={period}>
-                      {period}
+                      {formatBudgetLabel(period)}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              <FieldError message={fieldErrors.period} />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="currencyCode">Currency</Label>
@@ -137,6 +159,7 @@ export function BudgetModal({ onCreate }: BudgetModalProps) {
                 }
                 placeholder="PHP"
               />
+              <FieldError message={fieldErrors.currencyCode} />
             </div>
           </div>
 
@@ -156,6 +179,7 @@ export function BudgetModal({ onCreate }: BudgetModalProps) {
                   }))
                 }
               />
+              <FieldError message={fieldErrors.limitAmount} />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="spentAmount">Spent Amount</Label>
@@ -173,31 +197,32 @@ export function BudgetModal({ onCreate }: BudgetModalProps) {
                 }
                 placeholder="Optional"
               />
+              <FieldError message={fieldErrors.spentAmount} />
             </div>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-2">
               <Label htmlFor="startsAt">Start Date</Label>
-              <Input
-                id="startsAt"
-                type="date"
+              <DatePicker
                 value={formState.startsAt}
-                onChange={(event) =>
-                  setFormState((current) => ({ ...current, startsAt: event.target.value }))
+                onChange={(value) =>
+                  setFormState((current) => ({ ...current, startsAt: value }))
                 }
+                placeholder="Select start date"
               />
+              <FieldError message={fieldErrors.startsAt} />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="endsAt">End Date</Label>
-              <Input
-                id="endsAt"
-                type="date"
+              <DatePicker
                 value={formState.endsAt}
-                onChange={(event) =>
-                  setFormState((current) => ({ ...current, endsAt: event.target.value }))
+                onChange={(value) =>
+                  setFormState((current) => ({ ...current, endsAt: value }))
                 }
+                placeholder="Select end date"
               />
+              <FieldError message={fieldErrors.endsAt} />
             </div>
           </div>
 
@@ -211,9 +236,10 @@ export function BudgetModal({ onCreate }: BudgetModalProps) {
               }
               placeholder="Optional operating note for this budget."
             />
+            <FieldError message={fieldErrors.notes} />
           </div>
 
-          {error ? <p className="text-sm text-error">{error}</p> : null}
+          <FieldError message={error} className="text-sm" />
 
           <div className="flex justify-end gap-3">
             <Button

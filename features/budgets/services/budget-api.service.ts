@@ -4,6 +4,7 @@ import type {
   BudgetQuery,
   CreateBudgetInput,
 } from "@/features/budgets/types/Budget";
+import { ApiValidationError } from "@/lib/api-errors";
 import type { ApiErrorResponse, ApiSuccessResponse } from "@/types/api";
 
 function buildBudgetQueryString(query?: BudgetQuery) {
@@ -37,6 +38,20 @@ function extractApiErrorMessage(error: ApiErrorResponse) {
   return firstFieldError ?? firstFormError ?? error.error.message;
 }
 
+function extractApiValidationDetails(error: ApiErrorResponse) {
+  const details = error.error.details as
+    | {
+        fieldErrors?: Record<string, string[] | undefined>;
+        formErrors?: string[];
+      }
+    | undefined;
+
+  return {
+    fieldErrors: details?.fieldErrors,
+    formErrors: details?.formErrors,
+  };
+}
+
 export async function fetchBudgets(query?: BudgetQuery): Promise<BudgetApiListResponse> {
   const response = await fetch(`/api/budgets${buildBudgetQueryString(query)}`, {
     method: "GET",
@@ -48,7 +63,7 @@ export async function fetchBudgets(query?: BudgetQuery): Promise<BudgetApiListRe
 
   if (!response.ok) {
     const error = (await response.json()) as ApiErrorResponse;
-    throw new Error(extractApiErrorMessage(error));
+    throw new ApiValidationError(extractApiErrorMessage(error), extractApiValidationDetails(error));
   }
 
   const payload = (await response.json()) as ApiSuccessResponse<BudgetApiListResponse>;
@@ -66,7 +81,7 @@ export async function createBudgetRequest(input: CreateBudgetInput): Promise<Bud
 
   if (!response.ok) {
     const error = (await response.json()) as ApiErrorResponse;
-    throw new Error(extractApiErrorMessage(error));
+    throw new ApiValidationError(extractApiErrorMessage(error), extractApiValidationDetails(error));
   }
 
   const payload = (await response.json()) as ApiSuccessResponse<Budget>;
