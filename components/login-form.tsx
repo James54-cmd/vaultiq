@@ -72,7 +72,7 @@ export function LoginForm({
               {mode === "sign-in" ? "Welcome to VaultIQ" : "Create your VaultIQ account"}
             </h1>
             <div className="text-center text-sm text-muted">
-              {mode === "sign-in" ? "Don&apos;t have an account?" : "Already have an account?"}{" "}
+              {mode === "sign-in" ? "Don't have an account?" : "Already have an account?"}{" "}
               <Link
                 href={mode === "sign-in" ? "/signup" : "/login"}
                 className="underline underline-offset-4 text-foreground"
