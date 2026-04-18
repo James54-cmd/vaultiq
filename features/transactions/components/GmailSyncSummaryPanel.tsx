@@ -18,7 +18,7 @@ function getSummaryMessage(result: GmailSyncResult) {
     result.updatedCount === 0 &&
     result.skippedMessageCount === 0
   ) {
-    return "Matched emails were already synced before, so VaultIQ skipped duplicate fetches and writes for this run.";
+    return "Regular sync only checks new Gmail matches. Run Full Resync to reparse older synced emails and backfill missing references.";
   }
 
   if (result.updatedCount > 0 && result.insertedCount > 0) {

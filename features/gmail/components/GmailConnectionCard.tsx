@@ -63,7 +63,7 @@ export function GmailConnectionCard({
                   Last sync: {formatLastSyncedAt(connection.lastSyncedAt)}
                 </p>
                 <p className="text-sm text-muted">
-                  Regular sync stays fast by checking only recent Gmail activity. Full resync scans the historical window again and can take much longer.
+                  Regular sync stays fast by checking only recent Gmail activity and new matches. Full resync scans the historical window again to repair older rows with missing references, and can take much longer.
                 </p>
                 <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
                   <span className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-primary">
@@ -125,7 +125,7 @@ export function GmailConnectionCard({
         open={fullResyncOpen}
         onOpenChange={setFullResyncOpen}
         title="Run full Gmail resync?"
-        description="This scans the historical Gmail window again to rebuild older transactions or backfill missing rows. It is much slower than the normal incremental sync."
+        description="This scans the historical Gmail window again to rebuild older transactions or backfill missing references on rows that were already synced before. It is much slower than the normal incremental sync."
         confirmLabel="Start Full Resync"
         isPending={syncPending}
         onConfirm={async () => {
