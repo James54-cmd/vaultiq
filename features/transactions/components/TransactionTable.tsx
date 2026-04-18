@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { Pencil } from "lucide-react";
 
 import { BankAvatar } from "@/components/bank-avatar";
 import { Badge } from "@/components/ui/badge";
@@ -20,10 +21,13 @@ type TransactionTableProps = {
   isPending?: boolean;
   pagination?: TransactionListPagination | null;
   onPageChange?: (page: number) => void;
+  onEditTransaction?: (transaction: Transaction) => void;
 };
 
 const desktopTransactionTableColumns =
   "0.9fr 1.15fr 1.9fr 1fr 1fr 0.9fr";
+const desktopTransactionTableColumnsWithActions =
+  "0.9fr 1.15fr 1.9fr 1fr 1fr 0.9fr 0.8fr";
 
 function statusVariant(status: Transaction["status"]) {
   if (status === "completed") return "success";
@@ -39,7 +43,11 @@ export function TransactionTable({
   isPending = false,
   pagination,
   onPageChange,
+  onEditTransaction,
 }: TransactionTableProps) {
+  const desktopGridTemplate = onEditTransaction
+    ? desktopTransactionTableColumnsWithActions
+    : desktopTransactionTableColumns;
   const pageStart = pagination
     ? pagination.totalCount === 0
       ? 0
@@ -67,7 +75,7 @@ export function TransactionTable({
             <div className="min-w-[760px]">
               <div
                 className="hidden rounded-t-lg border-b border-border bg-background px-3 py-3 text-xs font-medium uppercase tracking-widest text-muted md:grid md:items-center md:gap-3 md:rounded-t-xl md:px-4 lg:gap-4 lg:px-6 lg:py-4"
-                style={{ gridTemplateColumns: desktopTransactionTableColumns }}
+                style={{ gridTemplateColumns: desktopGridTemplate }}
               >
                 <div className="whitespace-nowrap text-left">Date</div>
                 <div className="whitespace-nowrap text-left">Bank</div>
@@ -75,6 +83,7 @@ export function TransactionTable({
                 <div className="whitespace-nowrap text-left">Category</div>
                 <div className="whitespace-nowrap text-left">Amount</div>
                 <div className="whitespace-nowrap text-left">Status</div>
+                {onEditTransaction ? <div className="whitespace-nowrap text-left">Edit</div> : null}
               </div>
 
               <div className="divide-y divide-border">
@@ -83,7 +92,7 @@ export function TransactionTable({
                     <div
                       key={index}
                       className="flex items-center px-4 py-3 md:grid md:items-center md:gap-3 md:px-4 md:py-4 lg:gap-4 lg:px-6"
-                      style={{ gridTemplateColumns: desktopTransactionTableColumns }}
+                      style={{ gridTemplateColumns: desktopGridTemplate }}
                     >
                       <div className="flex w-full flex-col gap-3 py-1 md:hidden">
                         <div className="flex items-center justify-between gap-2">
@@ -122,6 +131,7 @@ export function TransactionTable({
                         <Skeleton className="h-4 w-20 rounded-md" />
                         <Skeleton className="h-4 w-20 rounded-md" />
                         <Skeleton className="h-6 w-16 rounded-full" />
+                        {onEditTransaction ? <Skeleton className="h-8 w-16 rounded-md" /> : null}
                       </div>
                     </div>
                   ))
@@ -141,8 +151,8 @@ export function TransactionTable({
                   transactions.map((transaction) => (
                     <div
                       key={transaction.id}
-                      className="cursor-pointer items-center px-4 py-3 transition hover:bg-accent-muted md:grid md:gap-3 md:px-4 md:py-4 lg:gap-4 lg:px-6"
-                      style={{ gridTemplateColumns: desktopTransactionTableColumns }}
+                      className="items-center px-4 py-3 transition hover:bg-accent-muted md:grid md:gap-3 md:px-4 md:py-4 lg:gap-4 lg:px-6"
+                      style={{ gridTemplateColumns: desktopGridTemplate }}
                     >
                       <div className="flex flex-col gap-3 md:hidden">
                         <div className="flex items-center justify-between gap-3">
@@ -181,6 +191,20 @@ export function TransactionTable({
                             {formatCurrency(transaction.signedAmount, transaction.currencyCode)}
                           </div>
                         </div>
+                        {onEditTransaction ? (
+                          <div className="flex justify-end">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 px-2 text-xs font-semibold"
+                              onClick={() => onEditTransaction(transaction)}
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                              Edit
+                            </Button>
+                          </div>
+                        ) : null}
                       </div>
 
                       <>
@@ -219,6 +243,21 @@ export function TransactionTable({
                         <div className="hidden text-left md:block">
                           <Badge variant={statusVariant(transaction.status)}>{transaction.status}</Badge>
                         </div>
+
+                        {onEditTransaction ? (
+                          <div className="hidden text-left md:block">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 px-2 text-xs font-semibold"
+                              onClick={() => onEditTransaction(transaction)}
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                              Edit
+                            </Button>
+                          </div>
+                        ) : null}
                       </>
                     </div>
                   ))

@@ -5,8 +5,10 @@ import { startOfDay, startOfMonth, startOfYear } from "date-fns";
 
 import {
   createManualTransactionSchema,
+  transactionIdSchema,
   transactionOverviewQuerySchema,
   transactionQuerySchema,
+  updateTransactionEditableFieldsSchema,
 } from "@/features/transactions/schemas/transaction.schema";
 import type {
   GmailSyncResult,
@@ -141,6 +143,36 @@ export async function createManualTransaction(
   const { data, error } = await supabase.rpc("create_manual_transaction", rpcPayload);
   if (error) {
     throw new Error(error.message);
+  }
+
+  return mapTransactionRecord(data as TransactionRecord);
+}
+
+export async function updateTransactionEditableFields(
+  supabase: SupabaseClient,
+  transactionId: string,
+  input: unknown
+) {
+  const parsedTransactionId = transactionIdSchema.parse(transactionId);
+  const parsedInput = updateTransactionEditableFieldsSchema.parse(input);
+
+  const { data, error } = await supabase
+    .from("transactions")
+    .update({
+      merchant: parsedInput.merchant,
+      category: parsedInput.category,
+      notes: parsedInput.notes,
+    })
+    .eq("id", parsedTransactionId)
+    .select("*")
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  if (!data) {
+    throw new Error("Transaction not found.");
   }
 
   return mapTransactionRecord(data as TransactionRecord);

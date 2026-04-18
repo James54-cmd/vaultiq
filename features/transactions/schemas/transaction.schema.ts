@@ -78,6 +78,18 @@ export const createManualTransactionSchema = transactionBaseSchema.extend({
   notes: trimmedOptionalTextSchema.nullish(),
 });
 
+export const updateTransactionEditableFieldsSchema = z
+  .object({
+    merchant: trimmedRequiredTextSchema,
+    category: transactionCategorySchema,
+    notes: trimmedOptionalTextSchema.nullish(),
+  })
+  .transform((value) => ({
+    merchant: value.merchant,
+    category: value.category,
+    notes: value.notes ?? null,
+  }));
+
 export const createManualTransactionFormSchema = z
   .object({
     direction: transactionDirectionSchema,

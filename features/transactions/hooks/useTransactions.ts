@@ -7,6 +7,7 @@ import {
   createManualTransactionRequest,
   fetchTransactions,
   syncGmailTransactionsRequest,
+  updateTransactionEditableFieldsRequest,
 } from "@/features/transactions/services/transaction-api.service";
 import type {
   CreateManualTransactionInput,
@@ -17,6 +18,7 @@ import type {
   TransactionListPagination,
   TransactionListSummary,
   TransactionQuery,
+  UpdateTransactionEditableFieldsInput,
 } from "@/features/transactions/types/Transaction";
 
 export function useTransactions() {
@@ -82,6 +84,19 @@ export function useTransactions() {
     });
   };
 
+  const updateTransaction = async (
+    transactionId: string,
+    input: UpdateTransactionEditableFieldsInput
+  ) => {
+    const updatedTransaction = await updateTransactionEditableFieldsRequest(transactionId, input);
+    loadTransactions({
+      ...query,
+      search: deferredSearch.trim().length > 0 ? deferredSearch.trim() : undefined,
+    });
+
+    return updatedTransaction;
+  };
+
   const syncGmailTransactions = (input?: GmailSyncInput) => {
     if (activeGmailSyncRef.current) {
       return activeGmailSyncRef.current;
@@ -119,6 +134,7 @@ export function useTransactions() {
     query,
     setQuery,
     createTransaction,
+    updateTransaction,
     syncGmailTransactions,
   };
 }

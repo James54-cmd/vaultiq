@@ -12,6 +12,7 @@ import type {
   transactionSchema,
   transactionSourceSchema,
   transactionStatusSchema,
+  updateTransactionEditableFieldsSchema,
 } from "@/features/transactions/schemas/transaction.schema";
 
 export type Transaction = z.infer<typeof transactionSchema> & {
@@ -31,6 +32,8 @@ export type TransactionOverviewQuery = z.infer<typeof transactionOverviewQuerySc
 export type CreateManualTransactionInput = z.infer<typeof createManualTransactionSchema>;
 export type CreateManualTransactionFormInput = z.input<typeof createManualTransactionFormSchema>;
 export type GmailSyncInput = z.infer<typeof gmailSyncSchema>;
+export type UpdateTransactionEditableFieldsInput = z.infer<typeof updateTransactionEditableFieldsSchema>;
+export type UpdateTransactionEditableFieldsFormInput = z.input<typeof updateTransactionEditableFieldsSchema>;
 
 export type TransactionListSummary = {
   totalCount: number;

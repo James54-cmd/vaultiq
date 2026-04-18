@@ -17,7 +17,10 @@ await mock.module("@/features/transactions/services/gmail-sync.service", {
   },
 });
 
-const { syncGmailTransactions } = await import("@/features/transactions/services/transaction.service");
+const {
+  syncGmailTransactions,
+  updateTransactionEditableFields,
+} = await import("@/features/transactions/services/transaction.service");
 
 function createParsedTransaction(
   overrides: Partial<ParsedGmailTransaction> = {}
@@ -103,6 +106,78 @@ function createSupabaseUpsertStub() {
   };
 }
 
+function createExistingTransactionRecord(
+  overrides: Partial<TransactionRecord> = {}
+): TransactionRecord {
+  return {
+    id: "11111111-1111-4111-8111-111111111111",
+    source: "manual",
+    direction: "expense",
+    amount: 199.99,
+    currency_code: "PHP",
+    bank_name: "GCash",
+    merchant: "Old Merchant",
+    description: "Original description",
+    category: "uncategorized",
+    reference_number: "REF-123",
+    notes: null,
+    status: "completed",
+    happened_at: "2026-04-18T06:13:21.000Z",
+    created_at: "2026-04-18T06:13:21.000Z",
+    updated_at: "2026-04-18T06:13:21.000Z",
+    gmail_message_id: null,
+    gmail_thread_id: null,
+    ...overrides,
+  };
+}
+
+function createSupabaseUpdateStub(initialRecord: TransactionRecord) {
+  let storedRecord = initialRecord;
+
+  return {
+    getRecord: () => storedRecord,
+    supabase: {
+      from: (tableName: string) => {
+        assert.equal(tableName, "transactions");
+
+        return {
+          update: (payload: { merchant: string; category: string; notes: string | null }) => ({
+            eq: (column: string, value: string) => {
+              assert.equal(column, "id");
+
+              return {
+                select: () => ({
+                  maybeSingle: async () => {
+                    if (value !== storedRecord.id) {
+                      return {
+                        data: null,
+                        error: null,
+                      };
+                    }
+
+                    storedRecord = {
+                      ...storedRecord,
+                      merchant: payload.merchant,
+                      category: payload.category,
+                      notes: payload.notes,
+                      updated_at: "2026-04-18T07:00:00.000Z",
+                    };
+
+                    return {
+                      data: storedRecord,
+                      error: null,
+                    };
+                  },
+                }),
+              };
+            },
+          }),
+        };
+      },
+    },
+  };
+}
+
 beforeEach(() => {
   parsedTransactionsResult = createParsedTransactionsResult();
   fetchParsedGmailTransactionsMock.mock.resetCalls();
@@ -137,4 +212,26 @@ test("full resync updates an existing Gmail row without creating a duplicate", a
   assert.equal(store.records.size, 1);
   assert.equal(store.records.get("gmail-msg-1")?.reference_number, "BC550000016798279517");
   assert.equal(fetchParsedGmailTransactionsMock.mock.calls.length, 2);
+});
+
+test("updates only the editable transaction fields", async () => {
+  const store = createSupabaseUpdateStub(createExistingTransactionRecord());
+
+  const updatedTransaction = await updateTransactionEditableFields(
+    store.supabase as never,
+    "11111111-1111-4111-8111-111111111111",
+    {
+    merchant: "Updated Merchant",
+    category: "food",
+    notes: "Updated reconciliation note",
+    }
+  );
+
+  assert.equal(updatedTransaction.merchant, "Updated Merchant");
+  assert.equal(updatedTransaction.category, "food");
+  assert.equal(updatedTransaction.notes, "Updated reconciliation note");
+  assert.equal(updatedTransaction.description, "Original description");
+  assert.equal(updatedTransaction.referenceNumber, "REF-123");
+  assert.equal(store.getRecord().description, "Original description");
+  assert.equal(store.getRecord().reference_number, "REF-123");
 });

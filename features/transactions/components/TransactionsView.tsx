@@ -5,19 +5,21 @@ import { useSearchParams } from "next/navigation";
 
 import { SectionHeader } from "@/components/section-header";
 import { QuickAddTransactionModal } from "@/features/transactions/components/QuickAddTransactionModal";
+import { TransactionEditDialog } from "@/features/transactions/components/TransactionEditDialog";
 import { TransactionFiltersToolbar } from "@/features/transactions/components/TransactionFiltersToolbar";
 import { TransactionTable } from "@/features/transactions/components/TransactionTable";
 import { GmailSyncSummaryPanel } from "@/features/transactions/components/GmailSyncSummaryPanel";
 import { GmailConnectionCard } from "@/features/gmail/components/GmailConnectionCard";
 import { useGmailConnection } from "@/features/gmail/hooks/useGmailConnection";
 import { useTransactions } from "@/features/transactions/hooks/useTransactions";
-import type { GmailSyncResult } from "@/features/transactions/types/Transaction";
+import type { GmailSyncResult, Transaction } from "@/features/transactions/types/Transaction";
 import { formatCurrency } from "@/lib/format";
 import { isGmailSyncEnabled } from "@/lib/app-config";
 
 export function TransactionsView() {
   const searchParams = useSearchParams();
   const [gmailSyncResult, setGmailSyncResult] = useState<GmailSyncResult | null>(null);
+  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const gmailSyncEnabled = isGmailSyncEnabled();
   const { status: gmailStatus, error: gmailError, isPending: gmailPending, reloadConnection } =
     useGmailConnection(gmailSyncEnabled);
@@ -33,6 +35,7 @@ export function TransactionsView() {
     query,
     setQuery,
     createTransaction,
+    updateTransaction,
     syncGmailTransactions,
   } = useTransactions();
   const gmailMessage =
@@ -113,7 +116,7 @@ export function TransactionsView() {
 
       <TransactionTable
         title="Transaction Ledger"
-        description="Every row keeps the source bank visible, with parsed references where available."
+        description="Every row keeps the source bank visible, with parsed references where available. Only merchant, category, and notes can be edited."
         toolbar={
           <TransactionFiltersToolbar
             search={search}
@@ -132,6 +135,21 @@ export function TransactionsView() {
             page,
           }))
         }
+        onEditTransaction={setSelectedTransaction}
+      />
+
+      <TransactionEditDialog
+        transaction={selectedTransaction}
+        open={selectedTransaction !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelectedTransaction(null);
+          }
+        }}
+        onSubmit={async (transactionId, input) => {
+          const updatedTransaction = await updateTransaction(transactionId, input);
+          setSelectedTransaction(updatedTransaction);
+        }}
       />
     </div>
   );

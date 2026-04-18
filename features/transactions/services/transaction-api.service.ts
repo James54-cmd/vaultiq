@@ -7,6 +7,7 @@ import type {
   TransactionOverview,
   TransactionOverviewQuery,
   TransactionQuery,
+  UpdateTransactionEditableFieldsInput,
 } from "@/features/transactions/types/Transaction";
 import type { ApiErrorResponse, ApiSuccessResponse } from "@/types/api";
 
@@ -87,6 +88,27 @@ export async function fetchTransactions(query?: TransactionQuery) {
 export async function createManualTransactionRequest(input: CreateManualTransactionInput) {
   const response = await fetch("/api/transactions", {
     method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(input),
+  });
+
+  if (!response.ok) {
+    const error = (await response.json()) as ApiErrorResponse;
+    throw new ApiValidationError(extractApiErrorMessage(error), extractApiValidationDetails(error));
+  }
+
+  const payload = await response.json() as ApiSuccessResponse<TransactionListResponse["transactions"][number]>;
+  return payload.data;
+}
+
+export async function updateTransactionEditableFieldsRequest(
+  transactionId: string,
+  input: UpdateTransactionEditableFieldsInput
+) {
+  const response = await fetch(`/api/transactions/${transactionId}`, {
+    method: "PATCH",
     headers: {
       "Content-Type": "application/json",
     },
