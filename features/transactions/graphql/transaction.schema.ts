@@ -129,8 +129,10 @@ const transactionGraphqlSchema = buildSchema(`
     daysBack: Int!
     pagesFetched: Int!
     matchedMessageCount: Int!
+    existingMessageCount: Int!
     parsedMessageCount: Int!
     insertedCount: Int!
+    updatedCount: Int!
     skippedMessageCount: Int!
     skippedMessages: [GmailSyncSkippedMessage!]!
     transactions: [Transaction!]!
@@ -162,6 +164,7 @@ const transactionGraphqlSchema = buildSchema(`
     maxResults: Int
     maxPages: Int
     daysBack: Int
+    reprocessExisting: Boolean
   }
 
   type Query {

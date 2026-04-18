@@ -15,9 +15,18 @@ function getSummaryMessage(result: GmailSyncResult) {
     result.existingMessageCount > 0 &&
     result.parsedMessageCount === 0 &&
     result.insertedCount === 0 &&
+    result.updatedCount === 0 &&
     result.skippedMessageCount === 0
   ) {
     return "Matched emails were already synced before, so VaultIQ skipped duplicate fetches and writes for this run.";
+  }
+
+  if (result.updatedCount > 0 && result.insertedCount > 0) {
+    return "Full resync reparsed existing Gmail transactions, backfilled missing fields like references, and added any newly discovered rows.";
+  }
+
+  if (result.updatedCount > 0) {
+    return "Full resync reparsed existing Gmail transactions and refreshed stored rows with any missing data it could now read.";
   }
 
   if (result.parsedMessageCount === 0) {
@@ -40,7 +49,7 @@ export function GmailSyncSummaryPanel({ result }: GmailSyncSummaryPanelProps) {
           <p className="pt-1 text-sm text-muted">{getSummaryMessage(result)}</p>
         </div>
 
-        <div className="grid gap-3 md:grid-cols-5">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
           <div className="rounded-lg border border-border bg-background px-4 py-4">
             <p className="text-xs uppercase tracking-widest text-muted">Matched</p>
             <p className="financial-figure pt-2 text-xl font-bold text-foreground">
@@ -60,9 +69,15 @@ export function GmailSyncSummaryPanel({ result }: GmailSyncSummaryPanelProps) {
             </p>
           </div>
           <div className="rounded-lg border border-border bg-background px-4 py-4">
-            <p className="text-xs uppercase tracking-widest text-muted">Written</p>
+            <p className="text-xs uppercase tracking-widest text-muted">New</p>
             <p className="financial-figure pt-2 text-xl font-bold text-primary">
               {result.insertedCount.toFixed(0)}
+            </p>
+          </div>
+          <div className="rounded-lg border border-border bg-background px-4 py-4">
+            <p className="text-xs uppercase tracking-widest text-muted">Updated</p>
+            <p className="financial-figure pt-2 text-xl font-bold text-secondary">
+              {result.updatedCount.toFixed(0)}
             </p>
           </div>
           <div className="rounded-lg border border-border bg-background px-4 py-4">

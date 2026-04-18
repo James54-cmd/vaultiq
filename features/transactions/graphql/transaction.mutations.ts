@@ -17,8 +17,10 @@ export const SYNC_GMAIL_TRANSACTIONS_MUTATION = `
       daysBack
       pagesFetched
       matchedMessageCount
+      existingMessageCount
       parsedMessageCount
       insertedCount
+      updatedCount
       skippedMessageCount
       skippedMessages {
         gmailMessageId

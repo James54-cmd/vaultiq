@@ -61,49 +61,100 @@ function decodeHtmlEntities(value: string) {
     .replaceAll("&#39;", "'");
 }
 
-function stripHtml(value: string) {
-  return decodeHtmlEntities(
-    value
-      .replace(/<style[\s\S]*?<\/style>/gi, " ")
-      .replace(/<script[\s\S]*?<\/script>/gi, " ")
-      .replace(/<br\s*\/?>/gi, "\n")
-      .replace(/<\/(p|div|li|tr|td|h\d)>/gi, "\n")
-      .replace(/<[^>]+>/g, " ")
-  )
-    .replace(/\r/g, "\n")
-    .replace(/[ \t]+\n/g, "\n")
-    .replace(/\n{3,}/g, "\n\n")
-    .replace(/\s{2,}/g, " ")
-    .trim();
-}
+function normalizeMultilineText(value: string) {
+  const lines = value
+    .replace(/\r\n?/g, "\n")
+    .split("\n")
+    .map((line) => line.replace(/[ \t]+/g, " ").trim());
+  const normalizedLines: string[] = [];
+  let previousLineBlank = false;
 
-function findBodyData(
-  parts?: GmailMessageDetail["payload"] extends infer T
-    ? T extends { parts?: infer Parts }
-      ? Parts
-      : never
-    : never
-): string | undefined {
-  let htmlCandidate: string | undefined;
-
-  for (const part of parts ?? []) {
-    if (part.mimeType === "text/plain" && part.body?.data) {
-      return part.body.data;
-    }
-
-    if (!htmlCandidate && part.mimeType === "text/html" && part.body?.data) {
-      htmlCandidate = part.body.data;
-    }
-
-    if (part.parts?.length) {
-      const nested = findBodyData(part.parts);
-      if (nested) {
-        return nested;
+  for (const line of lines) {
+    if (line.length === 0) {
+      if (!previousLineBlank && normalizedLines.length > 0) {
+        normalizedLines.push("");
       }
+
+      previousLineBlank = true;
+      continue;
     }
+
+    normalizedLines.push(line);
+    previousLineBlank = false;
   }
 
-  return htmlCandidate;
+  return normalizedLines.join("\n").trim();
+}
+
+function stripHtml(value: string) {
+  return normalizeMultilineText(
+    decodeHtmlEntities(
+      value
+        .replace(/<style[\s\S]*?<\/style>/gi, " ")
+        .replace(/<script[\s\S]*?<\/script>/gi, " ")
+        .replace(/<br\s*\/?>/gi, "\n")
+        .replace(/<\/(p|div|li|tr|td|th|table|section|article|header|footer|h\d)>/gi, "\n")
+        .replace(/<[^>]+>/g, " ")
+    )
+  );
+}
+
+type GmailPayloadPart = NonNullable<GmailMessageDetail["payload"]>;
+
+function collectBodyDataParts(
+  part: GmailPayloadPart | NonNullable<GmailPayloadPart["parts"]>[number] | undefined,
+  segments: Array<{ mimeType: string; data: string }>
+) {
+  if (!part) {
+    return;
+  }
+
+  if (
+    part.body?.data &&
+    (part.mimeType === "text/plain" || part.mimeType === "text/html")
+  ) {
+    segments.push({
+      mimeType: part.mimeType,
+      data: part.body.data,
+    });
+  }
+
+  for (const nestedPart of part.parts ?? []) {
+    collectBodyDataParts(nestedPart, segments);
+  }
+}
+
+function parseMessageBody(message: GmailMessageDetail) {
+  const segments: Array<{ mimeType: string; data: string }> = [];
+  collectBodyDataParts(message.payload, segments);
+
+  if (segments.length === 0 && message.payload?.body?.data) {
+    segments.push({
+      mimeType: message.payload.mimeType ?? "text/plain",
+      data: message.payload.body.data,
+    });
+  }
+
+  const normalizedSegments = Array.from(
+    new Set(
+      segments
+        .map(({ mimeType, data }) => {
+          const decoded = decodeBase64Url(data);
+          if (!decoded) {
+            return "";
+          }
+
+          if (mimeType === "text/html" || /<\/?[a-z][\s\S]*>/i.test(decoded)) {
+            return stripHtml(decoded);
+          }
+
+          return normalizeMultilineText(decoded);
+        })
+        .filter((segment) => segment.length > 0)
+    )
+  );
+
+  return normalizedSegments.join("\n");
 }
 
 function getHeaderValue(
@@ -378,14 +429,7 @@ function createSkippedResult(
 export function parseGmailPaymentEmail(message: GmailMessageDetail): GmailPaymentEmailParseResult {
   const subject = getHeaderValue(message, "Subject") ?? "";
   const from = getHeaderValue(message, "From") ?? "";
-  const bodyData =
-    message.payload?.body?.data ??
-    findBodyData(message.payload?.parts);
-  const decodedBody = decodeBase64Url(bodyData);
-  const body =
-    message.payload?.mimeType === "text/html" || /<\/?[a-z][\s\S]*>/i.test(decodedBody)
-      ? stripHtml(decodedBody)
-      : decodedBody;
+  const body = parseMessageBody(message);
   const combined = [subject, from, message.snippet ?? "", body].filter(Boolean).join("\n");
 
   if (combined.trim().length === 0) {

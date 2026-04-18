@@ -206,4 +206,5 @@ export const gmailSyncSchema = z.object({
   maxResults: z.number().int().min(1).max(50).optional(),
   maxPages: z.number().int().min(1).max(20).optional(),
   daysBack: z.number().int().min(1).max(730).optional(),
+  reprocessExisting: z.boolean().optional(),
 });

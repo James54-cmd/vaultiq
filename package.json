@@ -9,7 +9,7 @@
     "lint": "next lint",
     "gmail:token": "node scripts/get-gmail-token.js",
     "prepare": "husky install",
-    "test": "echo \"No tests specified\" && exit 0"
+    "test": "node --test --experimental-test-module-mocks --loader ./tests/helpers/alias-loader.mjs"
   },
   "dependencies": {
     "@radix-ui/react-checkbox": "^1.3.2",

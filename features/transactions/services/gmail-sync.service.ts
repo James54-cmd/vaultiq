@@ -125,6 +125,7 @@ export async function fetchParsedGmailTransactions(
   );
   const maxResults = parsedInput.maxResults ?? env.GMAIL_SYNC_MAX_RESULTS ?? defaultGmailSyncMaxResultsPerPage;
   const maxPages = parsedInput.maxPages ?? defaultGmailSyncMaxPages;
+  const reprocessExisting = parsedInput.reprocessExisting === true;
   const { connection, accessToken } = await getValidGmailAccessToken(supabase, userId);
   const ledgerHasTransactions = await hasAnyTransactions(supabase);
   const daysBack =
@@ -166,18 +167,25 @@ export async function fetchParsedGmailTransactions(
     supabase,
     messages.map((message) => message.id)
   );
-  const unsyncedMessages = messages.filter((message) => !existingMessageIds.has(message.id));
-  const details = await fetchGmailMessageDetailsInBatches(accessToken, unsyncedMessages);
+  const messagesToProcess = reprocessExisting
+    ? messages
+    : messages.filter((message) => !existingMessageIds.has(message.id));
+  const details = await fetchGmailMessageDetailsInBatches(accessToken, messagesToProcess);
 
   await markGmailConnectionSynced(supabase, connection.id);
 
   const parsedTransactions = [];
   const skippedMessages = [];
+  let parsedExistingMessageCount = 0;
 
   for (const detail of details) {
     const result = parseGmailPaymentEmail(detail);
 
     if (result.kind === "parsed") {
+      if (existingMessageIds.has(result.transaction.gmailMessageId)) {
+        parsedExistingMessageCount += 1;
+      }
+
       parsedTransactions.push(result.transaction);
       continue;
     }
@@ -191,6 +199,7 @@ export async function fetchParsedGmailTransactions(
     pagesFetched,
     matchedMessageCount: messages.length,
     existingMessageCount: existingMessageIds.size,
+    parsedExistingMessageCount,
     parsedTransactions,
     skippedMessages,
   };

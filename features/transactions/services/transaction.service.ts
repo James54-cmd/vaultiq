@@ -156,6 +156,8 @@ export async function syncGmailTransactions(
     supabase,
     parsedTransactionsResult.parsedTransactions
   );
+  const updatedCount = parsedTransactionsResult.parsedExistingMessageCount;
+  const insertedCount = Math.max(0, createdTransactions.length - updatedCount);
 
   return {
     query: parsedTransactionsResult.query,
@@ -164,7 +166,8 @@ export async function syncGmailTransactions(
     matchedMessageCount: parsedTransactionsResult.matchedMessageCount,
     existingMessageCount: parsedTransactionsResult.existingMessageCount,
     parsedMessageCount: parsedTransactionsResult.parsedTransactions.length,
-    insertedCount: createdTransactions.length,
+    insertedCount,
+    updatedCount,
     skippedMessageCount: parsedTransactionsResult.skippedMessages.length,
     skippedMessages: parsedTransactionsResult.skippedMessages.slice(0, 5),
     transactions: createdTransactions,
