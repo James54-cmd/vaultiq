@@ -83,7 +83,7 @@ export function TransactionTable({
                 <div className="whitespace-nowrap text-left">Category</div>
                 <div className="whitespace-nowrap text-left">Amount</div>
                 <div className="whitespace-nowrap text-left">Status</div>
-                {onEditTransaction ? <div className="whitespace-nowrap text-left">Edit</div> : null}
+                {onEditTransaction ? <div className="whitespace-nowrap text-left"></div> : null}
               </div>
 
               <div className="divide-y divide-border">
