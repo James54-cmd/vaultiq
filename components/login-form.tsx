@@ -57,13 +57,13 @@ export function LoginForm({
               href="/"
               className="flex flex-col items-center gap-2 font-medium"
             >
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-secondary/20 bg-secondary/10">
+              <div className="flex h-12 w-12 items-center justify-center">
                 <Image
                   src="/assets/logo/vault-logo-icon.png"
                   alt="VaultIQ Logo"
-                  width={34}
-                  height={34}
-                  className="h-8 w-8"
+                  width={40}
+                  height={40}
+                  className="h-10 w-10"
                 />
               </div>
               <span className="sr-only">VaultIQ</span>
