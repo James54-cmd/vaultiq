@@ -1,7 +1,5 @@
 "use client";
 
-import { ShieldCheck } from "lucide-react";
-
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,23 +33,17 @@ export function TransactionEditCredibilityAlertDialog({
         }
       }}
     >
-      <AlertDialogContent className="w-[calc(100vw-2rem)] max-w-md gap-0 rounded-[24px] border border-border/80 bg-surface p-0 text-foreground shadow-[0_24px_64px_rgba(11,18,32,0.2)]">
-        <AlertDialogHeader className="gap-3 border-b border-border/70 bg-gradient-to-b from-background/95 via-background/80 to-background/45 px-5 py-5 text-left">
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-secondary/20 bg-secondary/10 text-secondary">
-            <ShieldCheck className="h-5 w-5" />
-          </div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-secondary">
-            Review Save
-          </p>
+      <AlertDialogContent className="w-[calc(100vw-2rem)] max-w-md gap-0 rounded-[22px] border border-border/80 bg-surface p-0 text-foreground shadow-[0_24px_64px_rgba(11,18,32,0.18)]">
+        <AlertDialogHeader className="gap-2 border-b border-border/60 bg-background/95 px-4 py-4 text-left sm:px-5">
           <AlertDialogTitle className="text-base font-semibold sm:text-lg">
-            Keep this transaction credible?
+            Save these changes?
           </AlertDialogTitle>
-          <AlertDialogDescription className="text-sm text-muted">
-            Only the merchant, category, and notes will change. Core ledger facts like amount, bank,
-            source, status, reference, and transaction date stay locked so the record remains traceable.
+          <AlertDialogDescription className="text-sm leading-5 text-muted">
+            Only the merchant, category, and notes will be updated. Amount, bank, source, status,
+            reference, and transaction date stay locked for audit traceability.
           </AlertDialogDescription>
         </AlertDialogHeader>
-        <AlertDialogFooter className="border-t border-border/70 bg-surface/95 px-5 py-4 backdrop-blur supports-[backdrop-filter]:bg-surface/82">
+        <AlertDialogFooter className="border-t border-border/70 bg-surface/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-surface/82 sm:px-5 sm:py-4">
           <AlertDialogCancel
             className="mt-0 w-full border-border bg-surface text-foreground hover:bg-accent-muted sm:w-auto"
             disabled={isPending}

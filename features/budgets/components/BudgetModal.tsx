@@ -26,6 +26,7 @@ import {
   DialogShellFooterBar,
   DialogShellHeaderFrame,
   DialogShellHeading,
+  DialogShellMetaList,
   DialogShellSection,
 } from "@/components/ui/dialog-shell";
 import { FieldError } from "@/components/ui/field-error";
@@ -171,37 +172,34 @@ export function BudgetModal({ budget, onSubmit }: BudgetModalProps) {
         )}
       </DialogTrigger>
       <DialogContent className={cn(dialogShellContentClassName, "max-w-xl bg-surface-raised")}>
-        <DialogShellHeaderFrame className="pr-8">
+        <DialogShellHeaderFrame className="pr-10">
           <DialogShellHeading
-            eyebrow="Budget Planning"
             title={
-              <DialogTitle className="text-base font-semibold text-foreground sm:text-lg">
-                {isEditMode ? "Update Budget" : "Create Budget"}
+              <DialogTitle className="pr-6 text-base font-semibold text-foreground sm:text-lg">
+                {isEditMode ? "Edit Budget" : "Create Budget"}
               </DialogTitle>
             }
             description={
-              <DialogDescription className="text-sm text-muted">
+              <DialogDescription className="text-sm leading-5 text-muted">
                 {isEditMode
-                  ? "Tune this budget window, allocation, and notes without leaving the budgets workspace."
-                  : "Set up a new category guardrail with its own cadence, timeline, and allocation."}
+                  ? "Adjust the cadence, allocation, and notes for this budget."
+                  : "Set a category limit with the dates and amount you want to track."}
               </DialogDescription>
             }
           />
-
-          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            <div className="rounded-2xl border border-border/70 bg-surface px-4 py-3 shadow-sm shadow-slate-950/5">
-              <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted">Period</p>
-              <p className="mt-2 text-sm font-medium text-foreground">{periodLabel}</p>
-            </div>
-            <div className="rounded-2xl border border-border/70 bg-surface px-4 py-3 shadow-sm shadow-slate-950/5">
-              <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted">Currency</p>
-              <p className="mt-2 text-sm font-medium text-foreground">{currencyLabel}</p>
-            </div>
-            <div className="rounded-2xl border border-border/70 bg-surface px-4 py-3 shadow-sm shadow-slate-950/5 sm:col-span-2 lg:col-span-1">
-              <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted">Budget Window</p>
-              <p className="mt-2 text-sm font-medium text-foreground">{budgetWindowLabel}</p>
-            </div>
-          </div>
+          <DialogShellMetaList
+            className="sm:grid-cols-3"
+            items={[
+              { label: "Period", value: periodLabel },
+              { label: "Currency", value: currencyLabel },
+              {
+                label: "Window",
+                value: budgetWindowLabel,
+                className: "col-span-2 sm:col-span-1",
+                valueClassName: "whitespace-normal leading-5",
+              },
+            ]}
+          />
         </DialogShellHeaderFrame>
 
         <form className="flex min-h-0 flex-1 flex-col overflow-hidden" onSubmit={handleSubmit}>

@@ -26,6 +26,7 @@ import {
   TransactionDialogFooterBar,
   TransactionDialogHeaderFrame,
   TransactionDialogHeading,
+  TransactionDialogMetaList,
   TransactionDialogSection,
   transactionDialogContentClassName,
 } from "@/features/transactions/components/TransactionDialogScaffold";
@@ -154,34 +155,30 @@ export function TransactionEditDialog({
           }}
           className={transactionDialogContentClassName}
         >
-          <TransactionDialogHeaderFrame className="pr-8">
+          <TransactionDialogHeaderFrame className="pr-10">
             <TransactionDialogHeading
-              eyebrow="Ledger Refinement"
-              title={<DialogTitle className="text-base font-semibold text-foreground sm:text-lg">Edit Transaction Labels</DialogTitle>}
+              title={<DialogTitle className="pr-6 text-base font-semibold text-foreground sm:text-lg">Edit Transaction</DialogTitle>}
               description={
-                <DialogDescription className="text-sm text-muted">
-                  Adjust merchant, category, and notes while keeping the underlying ledger facts locked.
+                <DialogDescription className="text-sm leading-5 text-muted">
+                  Update the merchant, category, and notes while the original ledger facts stay locked.
                 </DialogDescription>
               }
             />
-            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              <div className="rounded-2xl border border-border/70 bg-surface-raised/70 px-4 py-3 shadow-sm shadow-slate-950/5">
-                <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted">Original Amount</p>
-                <p className="financial-figure mt-2 text-lg font-semibold text-foreground">
-                  {formatCurrency(transaction.signedAmount, transaction.currencyCode)}
-                </p>
-              </div>
-              <div className="rounded-2xl border border-border/70 bg-surface-raised/70 px-4 py-3 shadow-sm shadow-slate-950/5">
-                <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted">Bank</p>
-                <p className="mt-2 text-sm font-medium text-foreground">{transaction.bankName}</p>
-              </div>
-              <div className="rounded-2xl border border-border/70 bg-surface-raised/70 px-4 py-3 shadow-sm shadow-slate-950/5 sm:col-span-2 lg:col-span-1">
-                <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted">Transaction Date</p>
-                <p className="mt-2 text-sm font-medium text-foreground">
-                  {formatDatePickerLabel(transaction.happenedAt.slice(0, 10))}
-                </p>
-              </div>
-            </div>
+            <TransactionDialogMetaList
+              className="sm:grid-cols-3"
+              items={[
+                {
+                  label: "Amount",
+                  value: formatCurrency(transaction.signedAmount, transaction.currencyCode),
+                  valueClassName: "financial-figure",
+                },
+                { label: "Bank", value: transaction.bankName },
+                {
+                  label: "Date",
+                  value: formatDatePickerLabel(transaction.happenedAt.slice(0, 10)),
+                },
+              ]}
+            />
           </TransactionDialogHeaderFrame>
 
           {/* Scrollable body */}
@@ -200,16 +197,8 @@ export function TransactionEditDialog({
               className="scrollbar-hide"
             >
               <div className="space-y-6">
-                <div className="rounded-xl border border-secondary/20 bg-secondary/10 px-4 py-3">
-                  <p className="text-sm font-medium text-foreground">Locked fields protect the audit trail.</p>
-                  <p className="pt-1 text-xs text-muted">
-                    Amount, bank, source, reference, status, description, and dates are intentionally
-                    read-only to keep each transaction credible.
-                  </p>
-                </div>
-
                 <TransactionDialogSection
-                  title="Audit-Locked Fields"
+                  title="Locked Fields"
                   description="These values stay read-only so the record remains traceable to the original entry."
                 >
                   <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -306,8 +295,8 @@ export function TransactionEditDialog({
                 </TransactionDialogSection>
 
                 <TransactionDialogSection
-                  title="Editable Labels"
-                  description="These are the only fields that can be refined after a transaction has been recorded."
+                  title="Editable Fields"
+                  description="These are the only details that can be refined after a transaction is recorded."
                 >
                   <div className="grid gap-3 sm:grid-cols-2">
                     <div className="space-y-1.5">

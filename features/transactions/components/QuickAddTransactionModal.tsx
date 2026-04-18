@@ -28,6 +28,7 @@ import {
   TransactionDialogFooterBar,
   TransactionDialogHeaderFrame,
   TransactionDialogHeading,
+  TransactionDialogMetaList,
   TransactionDialogSection,
   transactionDialogContentClassName,
 } from "@/features/transactions/components/TransactionDialogScaffold";
@@ -87,32 +88,23 @@ export function QuickAddTransactionModal({
         <Button>{triggerLabel}</Button>
       </DialogTrigger>
       <DialogContent className={cn(transactionDialogContentClassName, "bg-surface-raised")}>
-        <TransactionDialogHeaderFrame className="pr-8">
+        <TransactionDialogHeaderFrame className="pr-10">
           <TransactionDialogHeading
-            eyebrow="Manual Entry"
-            title={<DialogTitle className="text-base font-semibold text-foreground sm:text-lg">Quick Add Transaction</DialogTitle>}
+            title={<DialogTitle className="pr-6 text-base font-semibold text-foreground sm:text-lg">New Transaction</DialogTitle>}
             description={
-              <DialogDescription className="text-sm text-muted">
-                Log cash spend, income, or transfers without waiting for a receipt email.
+              <DialogDescription className="text-sm leading-5 text-muted">
+                Add a transaction manually without waiting for an imported record.
               </DialogDescription>
             }
           />
-          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            <div className="rounded-2xl border border-border/70 bg-surface px-4 py-3 shadow-sm shadow-slate-950/5">
-              <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted">Direction</p>
-              <p className="mt-2 text-sm font-medium text-foreground">{formatTransactionLabel(values.direction)}</p>
-            </div>
-            <div className="rounded-2xl border border-border/70 bg-surface px-4 py-3 shadow-sm shadow-slate-950/5">
-              <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted">Status</p>
-              <p className="mt-2 text-sm font-medium text-foreground">
-                {formatTransactionLabel(values.status ?? "completed")}
-              </p>
-            </div>
-            <div className="rounded-2xl border border-border/70 bg-surface px-4 py-3 shadow-sm shadow-slate-950/5 sm:col-span-2 lg:col-span-1">
-              <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted">Bank</p>
-              <p className="mt-2 text-sm font-medium text-foreground">{values.bankName}</p>
-            </div>
-          </div>
+          <TransactionDialogMetaList
+            className="sm:grid-cols-3"
+            items={[
+              { label: "Direction", value: formatTransactionLabel(values.direction) },
+              { label: "Status", value: formatTransactionLabel(values.status ?? "completed") },
+              { label: "Bank", value: values.bankName },
+            ]}
+          />
         </TransactionDialogHeaderFrame>
 
         <form
