@@ -201,6 +201,22 @@ function parseCurrencyAndAmount(content: string) {
   return null;
 }
 
+function countPatternMatches(content: string, patterns: RegExp[]) {
+  return patterns.reduce((count, pattern) => count + (pattern.test(content) ? 1 : 0), 0);
+}
+
+function hasCompletedRefundSignal(content: string) {
+  return /(?:refund (?:has been )?(?:processed|completed|successful|issued|sent|received))|(?:refund (?:amount|credit))|(?:credited back)|(?:returned to your account)|(?:reversal (?:completed|processed))|(?:cashback received)/i.test(
+    content
+  );
+}
+
+function hasPostedTransactionSignal(content: string) {
+  return /(?:payment (?:successful|succeeded|completed|confirmed|received|posted))|(?:transaction (?:successful|completed|posted))|(?:transfer (?:successful|completed|received|sent))|(?:you paid)|(?:you sent)|(?:money received)|(?:amount (?:paid|received))|(?:credited amount)|(?:debited amount)|(?:charged (?:to|on))|(?:has been debited)|(?:was debited)|(?:has been credited)|(?:was credited)|(?:deposit (?:successful|received|completed))|(?:cash in (?:successful|received))|(?:cash out (?:successful|completed))|(?:paid (?:with|via|using))|(?:official receipt)|(?:purchase receipt)|(?:transaction receipt)|(?:receipt number)|(?:order (?:has been )?paid)|(?:refund (?:successful|completed|processed|issued|received))/i.test(
+    content
+  );
+}
+
 function parseDirection(content: string) {
   const transferFromValue =
     content.match(/(?:transfer from|from account|source account)\s*[:#-]?\s*([^\n\r]+)/i)?.[1]?.trim() ??
@@ -209,8 +225,12 @@ function parseDirection(content: string) {
     content.match(/(?:transfer to|to account|destination account)\s*[:#-]?\s*([^\n\r]+)/i)?.[1]?.trim() ??
     null;
 
+  if (hasCompletedRefundSignal(content)) {
+    return "income" as const;
+  }
+
   if (
-    /(received|credited|deposit|incoming|salary|payroll|money received|transfer received|received in (?:your|my) account|transferred to (?:your|my) account|transferred to account|credited to (?:your|my) account|posted to (?:your|my) account)/i.test(
+    /(received|credited|deposit|incoming|salary|payroll|money received|transfer received|refund received|refund credited|received in (?:your|my) account|transferred to (?:your|my) account|transferred to account|credited to (?:your|my) account|posted to (?:your|my) account)/i.test(
       content
     )
   ) {
@@ -243,7 +263,7 @@ function parseDirection(content: string) {
     return "transfer" as const;
   }
 
-  if (/(paid|purchase|charged|debited|payment successful|spent)/i.test(content)) {
+  if (/(you paid|paid with|paid via|paid using|purchase (?:receipt|amount|successful)|charged|debited|payment successful|payment completed|spent)/i.test(content)) {
     return "expense" as const;
   }
 
@@ -251,15 +271,46 @@ function parseDirection(content: string) {
 }
 
 function looksLikeTransactionNotification(content: string) {
-  return /(payment|receipt|transaction|invoice|order|transfer|received|credited|debited|deposit|purchase|fund transfer|paid|spent|money received)/i.test(
+  return /(payment|receipt|transaction|invoice|transfer|received|credited|debited|deposit|fund transfer|paid|spent|money received|refund)/i.test(
     content
-  );
+  ) || (/\border\b/i.test(content) && hasPostedTransactionSignal(content));
 }
 
 function isNonPostedPaymentNotice(content: string) {
   return /(?:payment (?:was )?declined|payment declined|declined\.)|(?:payment (?:was )?failed|payment failed)|(?:amount due)|(?:update your payment method)|(?:use a different one)|(?:we'll try to process the payment again)|(?:retry payment)|(?:past due)|(?:subscription (?:payment )?failed)|(?:could not process your payment)|(?:unable to process payment)|(?:payment unsuccessful)|(?:unsuccessful payment)|(?:failed to charge)|(?:charge failed)/i.test(
     content
   );
+}
+
+function isCancelledOrderOrPaymentNotice(content: string) {
+  return /(?:order|payment|transaction|delivery|shipment).{0,80}(?:cancelled|canceled|voided)|(?:has been cancelled)|(?:has been canceled)|(?:did not manage to deliver)|(?:delivery (?:was )?unsuccessful)|(?:order cancellation)|(?:order was cancelled)|(?:order was canceled)|(?:payment (?:was )?reversed)|(?:transaction (?:was )?reversed)|(?:void transaction)/i.test(
+    content
+  ) && !hasCompletedRefundSignal(content);
+}
+
+function isOrderLifecycleNotice(content: string) {
+  return /(?:order details)|(?:order id)|(?:seller\s*:)|(?:tracking number)|(?:parcel)|(?:delivery update)|(?:shipment update)|(?:out for delivery)|(?:has shipped)|(?:has been shipped)|(?:delivered)|(?:your order)|(?:order status)/i.test(
+    content
+  );
+}
+
+function isPromotionalEmail(content: string) {
+  const promoSignals = [
+    /buy now/i,
+    /shop now/i,
+    /sale price/i,
+    /regular price/i,
+    /save (?:on|up to)/i,
+    /special offer/i,
+    /limited time/i,
+    /view in browser/i,
+    /unsubscribe/i,
+    /promo(?:tion| code)?/i,
+    /learn more/i,
+    /explore\b/i,
+  ];
+
+  return countPatternMatches(content, promoSignals) >= 2 && !hasPostedTransactionSignal(content);
 }
 
 function parseBankName(content: string, from: string) {
@@ -356,6 +407,33 @@ export function parseGmailPaymentEmail(message: GmailMessageDetail): GmailPaymen
       subject,
       from,
       "Message was a failed, declined, or billing reminder notice instead of a posted transaction."
+    );
+  }
+
+  if (isPromotionalEmail(combined)) {
+    return createSkippedResult(
+      message,
+      subject,
+      from,
+      "Message looked like a promotional or marketing email instead of a posted transaction."
+    );
+  }
+
+  if (isCancelledOrderOrPaymentNotice(combined)) {
+    return createSkippedResult(
+      message,
+      subject,
+      from,
+      "Message was a cancelled, voided, or undelivered order notice instead of a posted expense."
+    );
+  }
+
+  if (isOrderLifecycleNotice(combined) && !hasPostedTransactionSignal(combined)) {
+    return createSkippedResult(
+      message,
+      subject,
+      from,
+      "Message was an order or delivery status update without proof of a completed payment."
     );
   }
 

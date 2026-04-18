@@ -11,6 +11,15 @@ function getSummaryMessage(result: GmailSyncResult) {
     return "No Gmail messages matched the current sync query. Try the same query in Gmail search or broaden it further.";
   }
 
+  if (
+    result.existingMessageCount > 0 &&
+    result.parsedMessageCount === 0 &&
+    result.insertedCount === 0 &&
+    result.skippedMessageCount === 0
+  ) {
+    return "Matched emails were already synced before, so VaultIQ skipped duplicate fetches and writes for this run.";
+  }
+
   if (result.parsedMessageCount === 0) {
     return "Emails matched, but none contained a supported payment pattern that VaultIQ could parse into a transaction.";
   }
@@ -31,11 +40,17 @@ export function GmailSyncSummaryPanel({ result }: GmailSyncSummaryPanelProps) {
           <p className="pt-1 text-sm text-muted">{getSummaryMessage(result)}</p>
         </div>
 
-        <div className="grid gap-3 md:grid-cols-4">
+        <div className="grid gap-3 md:grid-cols-5">
           <div className="rounded-lg border border-border bg-background px-4 py-4">
             <p className="text-xs uppercase tracking-widest text-muted">Matched</p>
             <p className="financial-figure pt-2 text-xl font-bold text-foreground">
               {result.matchedMessageCount.toFixed(0)}
+            </p>
+          </div>
+          <div className="rounded-lg border border-border bg-background px-4 py-4">
+            <p className="text-xs uppercase tracking-widest text-muted">Existing</p>
+            <p className="financial-figure pt-2 text-xl font-bold text-muted-foreground">
+              {result.existingMessageCount.toFixed(0)}
             </p>
           </div>
           <div className="rounded-lg border border-border bg-background px-4 py-4">

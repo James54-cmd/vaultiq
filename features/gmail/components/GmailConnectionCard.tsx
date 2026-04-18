@@ -1,6 +1,8 @@
 "use client";
+import { useState } from "react";
 import { CheckCircle2, Mail, RefreshCcw, ShieldCheck } from "lucide-react";
 
+import { ConfirmationModal } from "@/components/confirmation-modal";
 import { Button } from "@/components/ui/button";
 import type { GmailConnectionStatus } from "@/features/gmail/types/GmailConnection";
 
@@ -10,6 +12,7 @@ type GmailConnectionCardProps = {
   error?: string | null;
   connectHref: string;
   onSync?: () => Promise<void>;
+  onFullResync?: () => Promise<void>;
   syncPending?: boolean;
 };
 
@@ -33,74 +36,102 @@ export function GmailConnectionCard({
   error,
   connectHref,
   onSync,
+  onFullResync,
   syncPending = false,
 }: GmailConnectionCardProps) {
+  const [fullResyncOpen, setFullResyncOpen] = useState(false);
   const connection = status.connection;
 
   return (
-    <div className="rounded-xl border border-border bg-surface px-5 py-5">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <div className="rounded-md border border-secondary/20 bg-secondary/10 p-2 text-secondary">
-              <Mail className="h-4 w-4" />
+    <>
+      <div className="rounded-xl border border-border bg-surface px-5 py-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <div className="rounded-md p-2 text-secondary">
+                <Mail className="h-4 w-4" />
+              </div>
+              <p className="text-sm font-semibold text-foreground">Gmail Transaction Logging</p>
             </div>
-            <p className="text-sm font-semibold text-foreground">Gmail Transaction Logging</p>
+
+            {status.connected && connection ? (
+              <div className="space-y-1">
+                <p className="text-sm text-foreground">
+                  Connected as <span className="font-medium">{connection.email}</span>
+                </p>
+                <p className="text-sm text-muted">
+                  Last sync: {formatLastSyncedAt(connection.lastSyncedAt)}
+                </p>
+                <p className="text-sm text-muted">
+                  Regular sync stays fast by checking only recent Gmail activity. Full resync scans the historical window again and can take much longer.
+                </p>
+                <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
+                  <span className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-primary">
+                    <CheckCircle2 className="h-3 w-3" />
+                    Gmail connected
+                  </span>
+                  <span className="inline-flex items-center gap-1 rounded-full border border-secondary/20 bg-secondary/10 px-2.5 py-1 text-secondary">
+                    <ShieldCheck className="h-3 w-3" />
+                    {connection.hasRefreshToken ? "Refresh token ready" : "Reconnect recommended"}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-1">
+                <p className="text-sm text-foreground">
+                  Connect Gmail to auto-detect “Payment Successful” emails and log them into VaultIQ.
+                </p>
+                <p className="text-sm text-muted">
+                  Manual quick add still works even before Gmail is connected.
+                </p>
+              </div>
+            )}
+
+            {error ? <p className="text-sm text-error">{error}</p> : null}
           </div>
 
-          {status.connected && connection ? (
-            <div className="space-y-1">
-              <p className="text-sm text-foreground">
-                Connected as <span className="font-medium">{connection.email}</span>
-              </p>
-              <p className="text-sm text-muted">
-                Last sync: {formatLastSyncedAt(connection.lastSyncedAt)}
-              </p>
-              <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
-                <span className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-primary">
-                  <CheckCircle2 className="h-3 w-3" />
-                  Gmail connected
-                </span>
-                <span className="inline-flex items-center gap-1 rounded-full border border-secondary/20 bg-secondary/10 px-2.5 py-1 text-secondary">
-                  <ShieldCheck className="h-3 w-3" />
-                  {connection.hasRefreshToken ? "Refresh token ready" : "Reconnect recommended"}
-                </span>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-1">
-              <p className="text-sm text-foreground">
-                Connect Gmail to auto-detect “Payment Successful” emails and log them into VaultIQ.
-              </p>
-              <p className="text-sm text-muted">
-                Manual quick add still works even before Gmail is connected.
-              </p>
-            </div>
-          )}
-
-          {error ? <p className="text-sm text-error">{error}</p> : null}
-        </div>
-
-        <div className="flex flex-col gap-2 sm:flex-row">
-          {status.connected && onSync ? (
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={onSync}
-              disabled={syncPending || isPending}
-              aria-busy={syncPending}
-            >
-              <RefreshCcw className={syncPending ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
-              {syncPending ? "Syncing Gmail..." : "Sync Gmail"}
+          <div className="flex flex-col gap-2 sm:flex-row">
+            {status.connected && onSync ? (
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={onSync}
+                disabled={syncPending || isPending}
+                aria-busy={syncPending}
+              >
+                <RefreshCcw className={syncPending ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
+                {syncPending ? "Syncing Gmail..." : "Sync Gmail"}
+              </Button>
+            ) : null}
+            {status.connected && onFullResync ? (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setFullResyncOpen(true)}
+                disabled={syncPending || isPending}
+              >
+                Full Resync
+              </Button>
+            ) : null}
+            <Button asChild variant={status.connected ? "secondary" : "default"}>
+              <a href={connectHref}>
+                {status.connected ? "Reconnect Gmail" : "Connect Gmail"}
+              </a>
             </Button>
-          ) : null}
-          <Button asChild variant={status.connected ? "secondary" : "default"}>
-            <a href={connectHref}>
-              {status.connected ? "Reconnect Gmail" : "Connect Gmail"}
-            </a>
-          </Button>
+          </div>
         </div>
       </div>
-    </div>
+      <ConfirmationModal
+        open={fullResyncOpen}
+        onOpenChange={setFullResyncOpen}
+        title="Run full Gmail resync?"
+        description="This scans the historical Gmail window again to rebuild older transactions or backfill missing rows. It is much slower than the normal incremental sync."
+        confirmLabel="Start Full Resync"
+        isPending={syncPending}
+        onConfirm={async () => {
+          await onFullResync?.();
+        }}
+      />
+    </>
   );
 }

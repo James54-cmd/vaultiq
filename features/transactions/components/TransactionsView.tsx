@@ -111,6 +111,11 @@ export function TransactionsView() {
             setGmailSyncResult(result);
             reloadConnection();
           }}
+          onFullResync={async () => {
+            const result = await syncGmailTransactions({ daysBack: 365, maxPages: 20 });
+            setGmailSyncResult(result);
+            reloadConnection();
+          }}
         />
       ) : (
         <div className="rounded-xl border border-secondary/20 bg-secondary/10 px-5 py-5">

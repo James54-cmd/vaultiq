@@ -10,6 +10,7 @@ import {
 } from "@/features/transactions/schemas/transaction.schema";
 import type {
   GmailSyncResult,
+  ParsedGmailTransaction,
   TransactionListResponse,
   TransactionOverview,
   TransactionOverviewPeriod,
@@ -20,7 +21,10 @@ import type {
   TransactionRecord,
 } from "@/features/transactions/types/TransactionRecord";
 import { mapTransactionRecord } from "@/features/transactions/utils/mapTransactionRecord";
+import { formatTransactionLabel } from "@/features/transactions/utils/formatTransactionLabel";
 import { fetchParsedGmailTransactions } from "@/features/transactions/services/gmail-sync.service";
+
+const gmailSyncInsertBatchSize = 10;
 
 export async function listTransactions(
   supabase: SupabaseClient,
@@ -38,8 +42,7 @@ export async function listTransactions(
 
   let summaryQuery = supabase
     .from("transactions")
-    .select("direction, amount")
-    .order("happened_at", { ascending: false });
+    .select("direction, amount");
 
   if (parsedQuery.bankName) {
     pagedTransactionQuery = pagedTransactionQuery.eq("bank_name", parsedQuery.bankName);
@@ -149,38 +152,17 @@ export async function syncGmailTransactions(
   input?: unknown
 ): Promise<GmailSyncResult> {
   const parsedTransactionsResult = await fetchParsedGmailTransactions(supabase, userId, input);
-  const createdTransactions = [];
-
-  for (const transaction of parsedTransactionsResult.parsedTransactions) {
-    const rpcPayload: IngestGmailTransactionRpcParams = {
-      p_direction: transaction.direction,
-      p_amount: transaction.amount,
-      p_bank_name: transaction.bankName,
-      p_merchant: transaction.merchant,
-      p_description: transaction.description,
-      p_category: transaction.category,
-      p_happened_at: transaction.happenedAt,
-      p_gmail_message_id: transaction.gmailMessageId,
-      p_currency_code: transaction.currencyCode,
-      p_reference_number: transaction.referenceNumber,
-      p_status: transaction.status,
-      p_gmail_thread_id: transaction.gmailThreadId,
-      p_raw_payload: transaction.rawPayload,
-    };
-
-    const { data, error } = await supabase.rpc("ingest_gmail_transaction", rpcPayload);
-    if (error) {
-      throw new Error(error.message);
-    }
-
-    createdTransactions.push(mapTransactionRecord(data as TransactionRecord));
-  }
+  const createdTransactions = await ingestGmailTransactionsInBatches(
+    supabase,
+    parsedTransactionsResult.parsedTransactions
+  );
 
   return {
     query: parsedTransactionsResult.query,
     daysBack: parsedTransactionsResult.daysBack,
     pagesFetched: parsedTransactionsResult.pagesFetched,
     matchedMessageCount: parsedTransactionsResult.matchedMessageCount,
+    existingMessageCount: parsedTransactionsResult.existingMessageCount,
     parsedMessageCount: parsedTransactionsResult.parsedTransactions.length,
     insertedCount: createdTransactions.length,
     skippedMessageCount: parsedTransactionsResult.skippedMessages.length,
@@ -197,13 +179,20 @@ export async function getTransactionOverview(
   const periodStart = getTransactionOverviewStart(parsedQuery.period);
   const budgetPeriod = getTransactionOverviewBudgetPeriod(parsedQuery.period);
 
-  let periodTransactionsQuery = supabase
+  let periodTransactionSummaryQuery = supabase
+    .from("transactions")
+    .select("direction, amount, category");
+
+  let recentTransactionsQuery = supabase
     .from("transactions")
     .select("*")
-    .order("happened_at", { ascending: false });
+    .order("happened_at", { ascending: false })
+    .limit(10);
 
   if (periodStart) {
-    periodTransactionsQuery = periodTransactionsQuery.gte("happened_at", periodStart.toISOString());
+    const periodStartIso = periodStart.toISOString();
+    periodTransactionSummaryQuery = periodTransactionSummaryQuery.gte("happened_at", periodStartIso);
+    recentTransactionsQuery = recentTransactionsQuery.gte("happened_at", periodStartIso);
   }
 
   let budgetsQuery = supabase
@@ -217,13 +206,15 @@ export async function getTransactionOverview(
 
   const [
     totalBalanceResult,
-    periodTransactionsResult,
+    periodTransactionSummaryResult,
+    recentTransactionsResult,
     budgetsResult,
   ] = await Promise.all([
     supabase
       .from("transactions")
       .select("direction, amount"),
-    periodTransactionsQuery,
+    periodTransactionSummaryQuery,
+    recentTransactionsQuery,
     budgetsQuery,
   ]);
 
@@ -231,8 +222,12 @@ export async function getTransactionOverview(
     throw new Error(totalBalanceResult.error.message);
   }
 
-  if (periodTransactionsResult.error) {
-    throw new Error(periodTransactionsResult.error.message);
+  if (periodTransactionSummaryResult.error) {
+    throw new Error(periodTransactionSummaryResult.error.message);
+  }
+
+  if (recentTransactionsResult.error) {
+    throw new Error(recentTransactionsResult.error.message);
   }
 
   if (budgetsResult.error) {
@@ -240,8 +235,12 @@ export async function getTransactionOverview(
   }
 
   const totalBalanceRows = totalBalanceResult.data ?? [];
-  const periodTransactions = ((periodTransactionsResult.data ?? []) as TransactionRecord[]).map(mapTransactionRecord);
-  const recentTransactions = periodTransactions.slice(0, 10);
+  const periodTransactionSummaryRows = (periodTransactionSummaryResult.data ?? []) as Array<{
+    direction: string | null;
+    amount: number | string | null;
+    category: string | null;
+  }>;
+  const recentTransactions = ((recentTransactionsResult.data ?? []) as TransactionRecord[]).map(mapTransactionRecord);
 
   const totalBalance = Number(
     totalBalanceRows
@@ -253,24 +252,27 @@ export async function getTransactionOverview(
   );
 
   const periodIncome = Number(
-    periodTransactions
+    periodTransactionSummaryRows
       .filter((transaction) => transaction.direction === "income")
-      .reduce((sum, transaction) => sum + transaction.amount, 0)
+      .reduce((sum, transaction) => sum + Number(transaction.amount ?? 0), 0)
       .toFixed(2)
   );
 
   const periodExpense = Number(
-    periodTransactions
+    periodTransactionSummaryRows
       .filter((transaction) => transaction.direction !== "income")
-      .reduce((sum, transaction) => sum + transaction.amount, 0)
+      .reduce((sum, transaction) => sum + Number(transaction.amount ?? 0), 0)
       .toFixed(2)
   );
 
   const categorySpendMap = new Map<string, number>();
-  for (const transaction of periodTransactions.filter((item) => item.direction !== "income")) {
+  for (const transaction of periodTransactionSummaryRows.filter((item) => item.direction !== "income")) {
+    const categoryLabel = formatTransactionLabel(transaction.category ?? "other");
+    const amount = Number(transaction.amount ?? 0);
+
     categorySpendMap.set(
-      transaction.categoryLabel,
-      Number(((categorySpendMap.get(transaction.categoryLabel) ?? 0) + transaction.amount).toFixed(2))
+      categoryLabel,
+      Number(((categorySpendMap.get(categoryLabel) ?? 0) + amount).toFixed(2))
     );
   }
 
@@ -326,4 +328,51 @@ function getTransactionOverviewBudgetPeriod(period: TransactionOverviewPeriod) {
   }
 
   return period;
+}
+
+async function ingestParsedGmailTransaction(
+  supabase: SupabaseClient,
+  transaction: ParsedGmailTransaction
+) {
+  const rpcPayload: IngestGmailTransactionRpcParams = {
+    p_direction: transaction.direction,
+    p_amount: transaction.amount,
+    p_bank_name: transaction.bankName,
+    p_merchant: transaction.merchant,
+    p_description: transaction.description,
+    p_category: transaction.category,
+    p_happened_at: transaction.happenedAt,
+    p_gmail_message_id: transaction.gmailMessageId,
+    p_currency_code: transaction.currencyCode,
+    p_reference_number: transaction.referenceNumber,
+    p_status: transaction.status,
+    p_gmail_thread_id: transaction.gmailThreadId,
+    p_raw_payload: transaction.rawPayload,
+  };
+
+  const { data, error } = await supabase.rpc("ingest_gmail_transaction", rpcPayload);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return mapTransactionRecord(data as TransactionRecord);
+}
+
+async function ingestGmailTransactionsInBatches(
+  supabase: SupabaseClient,
+  transactions: ParsedGmailTransaction[]
+) {
+  const createdTransactions = [];
+
+  for (let index = 0; index < transactions.length; index += gmailSyncInsertBatchSize) {
+    const batch = transactions.slice(index, index + gmailSyncInsertBatchSize);
+    const batchResults = await Promise.all(
+      batch.map((transaction) => ingestParsedGmailTransaction(supabase, transaction))
+    );
+
+    createdTransactions.push(...batchResults);
+  }
+
+  return createdTransactions;
 }

@@ -15,7 +15,10 @@ import { parseGmailPaymentEmail } from "@/features/transactions/utils/parseGmail
 import type { ParsedGmailTransactionsResult } from "@/features/transactions/types/Transaction";
 import { getGmailEnv } from "@/lib/gmail/config";
 
-const gmailMessageDetailBatchSize = 5;
+const gmailMessageDetailBatchSize = 10;
+const gmailMessageLookupBatchSize = 100;
+const incrementalSyncOverlapDays = 2;
+const millisecondsPerDay = 24 * 60 * 60 * 1000;
 
 function buildGmailSyncQuery(baseQuery: string, daysBack: number) {
   const trimmedQuery = baseQuery.trim();
@@ -45,6 +48,72 @@ async function fetchGmailMessageDetailsInBatches(
   return details;
 }
 
+function calculateIncrementalLookbackDays(lastSyncedAt: string | null) {
+  if (!lastSyncedAt) {
+    return null;
+  }
+
+  const lastSyncedTime = Date.parse(lastSyncedAt);
+
+  if (Number.isNaN(lastSyncedTime)) {
+    return null;
+  }
+
+  const elapsedDays = Math.ceil(
+    Math.max(0, Date.now() - lastSyncedTime) / millisecondsPerDay
+  );
+
+  return Math.min(
+    defaultGmailSyncLookbackDays,
+    Math.max(1, elapsedDays + incrementalSyncOverlapDays)
+  );
+}
+
+async function getExistingGmailMessageIds(
+  supabase: SupabaseClient,
+  messageIds: string[]
+) {
+  const existingMessageIds = new Set<string>();
+
+  for (let index = 0; index < messageIds.length; index += gmailMessageLookupBatchSize) {
+    const batch = messageIds.slice(index, index + gmailMessageLookupBatchSize);
+
+    if (batch.length === 0) {
+      continue;
+    }
+
+    const { data, error } = await supabase
+      .from("transactions")
+      .select("gmail_message_id")
+      .in("gmail_message_id", batch);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    (data ?? []).forEach((row) => {
+      if (typeof row.gmail_message_id === "string" && row.gmail_message_id.length > 0) {
+        existingMessageIds.add(row.gmail_message_id);
+      }
+    });
+  }
+
+  return existingMessageIds;
+}
+
+async function hasAnyTransactions(supabase: SupabaseClient) {
+  const { data, error } = await supabase
+    .from("transactions")
+    .select("id")
+    .limit(1);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return (data ?? []).length > 0;
+}
+
 export async function fetchParsedGmailTransactions(
   supabase: SupabaseClient,
   userId: string,
@@ -54,12 +123,17 @@ export async function fetchParsedGmailTransactions(
   const parsedInput = gmailSyncSchema.parse(
     typeof input === "object" && input !== null ? input : {}
   );
-  const daysBack = parsedInput.daysBack ?? defaultGmailSyncLookbackDays;
   const maxResults = parsedInput.maxResults ?? env.GMAIL_SYNC_MAX_RESULTS ?? defaultGmailSyncMaxResultsPerPage;
   const maxPages = parsedInput.maxPages ?? defaultGmailSyncMaxPages;
-  const query = buildGmailSyncQuery(parsedInput.query ?? defaultGmailSyncBaseQuery, daysBack);
-
   const { connection, accessToken } = await getValidGmailAccessToken(supabase, userId);
+  const ledgerHasTransactions = await hasAnyTransactions(supabase);
+  const daysBack =
+    parsedInput.daysBack ??
+    (ledgerHasTransactions
+      ? calculateIncrementalLookbackDays(connection.lastSyncedAt)
+      : null) ??
+    defaultGmailSyncLookbackDays;
+  const query = buildGmailSyncQuery(parsedInput.query ?? defaultGmailSyncBaseQuery, daysBack);
   const messageMap = new Map<string, { id: string; threadId: string }>();
   let nextPageToken: string | null = null;
   let pagesFetched = 0;
@@ -88,7 +162,12 @@ export async function fetchParsedGmailTransactions(
   }
 
   const messages = Array.from(messageMap.values());
-  const details = await fetchGmailMessageDetailsInBatches(accessToken, messages);
+  const existingMessageIds = await getExistingGmailMessageIds(
+    supabase,
+    messages.map((message) => message.id)
+  );
+  const unsyncedMessages = messages.filter((message) => !existingMessageIds.has(message.id));
+  const details = await fetchGmailMessageDetailsInBatches(accessToken, unsyncedMessages);
 
   await markGmailConnectionSynced(supabase, connection.id);
 
@@ -111,6 +190,7 @@ export async function fetchParsedGmailTransactions(
     daysBack,
     pagesFetched,
     matchedMessageCount: messages.length,
+    existingMessageCount: existingMessageIds.size,
     parsedTransactions,
     skippedMessages,
   };

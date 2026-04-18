@@ -134,6 +134,12 @@ export function TransactionDashboard() {
             reloadConnection();
             reloadOverview();
           }}
+          onFullResync={async () => {
+            const result = await syncGmailTransactions({ daysBack: 365, maxPages: 20 });
+            setGmailSyncResult(result);
+            reloadConnection();
+            reloadOverview();
+          }}
         />
       ) : null}
 

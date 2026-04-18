@@ -107,6 +107,7 @@ export type ParsedGmailTransactionsResult = {
   daysBack: number;
   pagesFetched: number;
   matchedMessageCount: number;
+  existingMessageCount: number;
   parsedTransactions: ParsedGmailTransaction[];
   skippedMessages: GmailSyncSkippedMessage[];
 };
@@ -116,6 +117,7 @@ export type GmailSyncResult = {
   daysBack: number;
   pagesFetched: number;
   matchedMessageCount: number;
+  existingMessageCount: number;
   parsedMessageCount: number;
   insertedCount: number;
   skippedMessageCount: number;

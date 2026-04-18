@@ -69,6 +69,20 @@ function isAbortError(error: unknown) {
   return error instanceof Error && error.name === "AbortError";
 }
 
+function formatGmailFetchError(error: Error, failureLabel: string) {
+  if (isAbortError(error)) {
+    return new Error(`${failureLabel} timed out while contacting Gmail.`);
+  }
+
+  if (error instanceof TypeError) {
+    return new Error(
+      `${failureLabel} because the server could not reach Gmail. Check the internet connection, DNS, firewall, or Google availability and try again.`
+    );
+  }
+
+  return error;
+}
+
 async function gmailApiFetch(
   accessToken: string,
   url: string,
@@ -113,17 +127,13 @@ async function gmailApiFetch(
         continue;
       }
 
-      if (isAbortError(lastError)) {
-        throw new Error(`${failureLabel} timed out while contacting Gmail.`);
-      }
-
-      throw lastError;
+      throw formatGmailFetchError(lastError, failureLabel);
     } finally {
       clearTimeout(timeout);
     }
   }
 
-  throw lastError ?? new Error(failureLabel);
+  throw formatGmailFetchError(lastError ?? new Error(failureLabel), failureLabel);
 }
 
 export async function listGmailMessages(

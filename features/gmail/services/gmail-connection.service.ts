@@ -30,6 +30,10 @@ function parseScopes(session: Session | null) {
     .filter(Boolean);
 }
 
+function isGoogleFetchFailure(error: unknown) {
+  return error instanceof Error && /fetch failed/i.test(error.message);
+}
+
 export async function upsertGmailConnectionFromSession(
   supabase: SupabaseClient,
   user: User,
@@ -130,7 +134,24 @@ export async function refreshGmailConnectionAccessToken(
     refresh_token: connection.refreshToken,
   });
 
-  const { credentials } = await oauthClient.refreshAccessToken();
+  let credentials: {
+    access_token?: string | null;
+    expiry_date?: number | null;
+    refresh_token?: string | null;
+  };
+
+  try {
+    ({ credentials } = await oauthClient.refreshAccessToken());
+  } catch (error) {
+    if (isGoogleFetchFailure(error)) {
+      throw new Error(
+        "Failed to refresh Gmail access token because the server could not reach Google. Check the internet connection, DNS, firewall, or Google availability and try again."
+      );
+    }
+
+    throw error;
+  }
+
   const nextAccessToken = credentials.access_token ?? connection.accessToken;
   const nextExpiryDate = credentials.expiry_date
     ? new Date(credentials.expiry_date).toISOString()
