@@ -7,6 +7,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import {
   BarChart3,
   CircleDollarSign,
+  ChevronDown,
   CreditCard,
   Goal,
   LayoutDashboard,
@@ -18,6 +19,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { BankAvatar } from "@/components/bank-avatar";
 import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { signOutRequest } from "@/features/auth/services/auth-api.service";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
@@ -81,6 +83,17 @@ export function VaultIQShell({ children }: { children: ReactNode }) {
     hydrateUser();
   }, []);
 
+  const handleSignOut = async () => {
+    setIsSigningOut(true);
+    try {
+      await signOutRequest();
+      router.push("/login");
+      router.refresh();
+    } finally {
+      setIsSigningOut(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="min-h-screen">
@@ -142,16 +155,7 @@ export function VaultIQShell({ children }: { children: ReactNode }) {
                 variant="secondary"
                 className="w-full justify-center"
                 disabled={isSigningOut}
-                onClick={async () => {
-                  setIsSigningOut(true);
-                  try {
-                    await signOutRequest();
-                    router.push("/login");
-                    router.refresh();
-                  } finally {
-                    setIsSigningOut(false);
-                  }
-                }}
+                onClick={handleSignOut}
               >
                 <LogOut className="h-4 w-4" />
                 {isSigningOut ? "Signing Out..." : "Sign Out"}
@@ -172,24 +176,66 @@ export function VaultIQShell({ children }: { children: ReactNode }) {
                   className="h-auto w-28"
                 />
               </Link>
-              <div className="flex min-w-0 items-center gap-2">
-                <div className="hidden min-w-0 sm:block">
-                  <p className="truncate text-xs font-medium text-foreground" title={userName}>
-                    {userName}
-                  </p>
-                  <p className="truncate text-2xs text-muted" title={userEmail}>
-                    {userEmail}
-                  </p>
-                </div>
-                <Badge variant="success" className="shrink-0">Pro</Badge>
-                <BankAvatar
-                  name={userName}
-                  initials={userInitials}
-                  imageSrc={userAvatarUrl}
-                  tone="primary"
-                  className="h-8 w-8 shrink-0"
-                />
-              </div>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className="flex items-center gap-2 rounded-full border border-border/70 bg-surface-raised/80 px-2 py-1.5 text-left shadow-sm transition hover:border-secondary/40 hover:bg-surface-raised focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40"
+                    aria-label="Open account menu"
+                  >
+                    <div className="hidden min-w-0 sm:block">
+                      <p className="truncate text-xs font-medium text-foreground" title={userName}>
+                        {userName}
+                      </p>
+                    </div>
+                    <Badge variant="success" className="hidden shrink-0 sm:inline-flex">Pro</Badge>
+                    <BankAvatar
+                      name={userName}
+                      initials={userInitials}
+                      imageSrc={userAvatarUrl}
+                      tone="primary"
+                      className="h-8 w-8 shrink-0"
+                    />
+                    <ChevronDown className="h-3.5 w-3.5 text-muted" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-[min(18rem,calc(100vw-1rem))] rounded-2xl border-border bg-surface-raised p-0 shadow-[0_20px_48px_rgba(11,18,32,0.18)]">
+                  <div className="space-y-4 p-4">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <BankAvatar
+                        name={userName}
+                        initials={userInitials}
+                        imageSrc={userAvatarUrl}
+                        tone="primary"
+                        className="shrink-0"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className="truncate text-sm font-medium text-foreground" title={userName}>
+                            {userName}
+                          </p>
+                          <Badge variant="success" className="shrink-0">Pro</Badge>
+                        </div>
+                        <p className="truncate text-xs text-muted" title={userEmail}>
+                          {userEmail}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="border-t border-border/70 pt-4">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        className="w-full justify-center"
+                        disabled={isSigningOut}
+                        onClick={handleSignOut}
+                      >
+                        <LogOut className="h-4 w-4" />
+                        {isSigningOut ? "Signing Out..." : "Sign Out"}
+                      </Button>
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
           </header>
           <main className="dashboard-grid min-h-screen flex-1 pb-24 lg:pb-0">{children}</main>
