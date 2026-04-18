@@ -28,6 +28,13 @@ import { fetchParsedGmailTransactions } from "@/features/transactions/services/g
 
 const gmailSyncInsertBatchSize = 10;
 
+type TransactionFinancialSummaryRow = {
+  direction: string | null;
+  amount: number | string | null;
+  status: string | null;
+  category?: string | null;
+};
+
 export async function listTransactions(
   supabase: SupabaseClient,
   query?: unknown
@@ -44,7 +51,7 @@ export async function listTransactions(
 
   let summaryQuery = supabase
     .from("transactions")
-    .select("direction, amount");
+    .select("direction, amount, status");
 
   if (parsedQuery.bankName) {
     pagedTransactionQuery = pagedTransactionQuery.eq("bank_name", parsedQuery.bankName);
@@ -88,7 +95,8 @@ export async function listTransactions(
   }
 
   const transactions = ((pagedTransactionsResult.data ?? []) as TransactionRecord[]).map(mapTransactionRecord);
-  const summaryRows = summaryResult.data ?? [];
+  const summaryRows = (summaryResult.data ?? []) as TransactionFinancialSummaryRow[];
+  const settledSummaryRows = summaryRows.filter(shouldIncludeTransactionInFinancialRollups);
   const totalCount = pagedTransactionsResult.count ?? summaryRows.length;
   const totalPages = Math.max(1, Math.ceil(totalCount / parsedQuery.pageSize));
 
@@ -97,13 +105,13 @@ export async function listTransactions(
     summary: {
       totalCount,
       incomeAmount: Number(
-        summaryRows
+        settledSummaryRows
           .filter((transaction) => transaction.direction === "income")
           .reduce((sum, transaction) => sum + Number(transaction.amount ?? 0), 0)
           .toFixed(2)
       ),
       expenseAmount: Number(
-        summaryRows
+        settledSummaryRows
           .filter((transaction) => transaction.direction !== "income")
           .reduce((sum, transaction) => sum + Number(transaction.amount ?? 0), 0)
           .toFixed(2)
@@ -216,7 +224,7 @@ export async function getTransactionOverview(
 
   let periodTransactionSummaryQuery = supabase
     .from("transactions")
-    .select("direction, amount, category");
+    .select("direction, amount, category, status");
 
   let recentTransactionsQuery = supabase
     .from("transactions")
@@ -247,7 +255,7 @@ export async function getTransactionOverview(
   ] = await Promise.all([
     supabase
       .from("transactions")
-      .select("direction, amount"),
+      .select("direction, amount, status"),
     periodTransactionSummaryQuery,
     recentTransactionsQuery,
     budgetsQuery,
@@ -269,16 +277,16 @@ export async function getTransactionOverview(
     throw new Error(budgetsResult.error.message);
   }
 
-  const totalBalanceRows = totalBalanceResult.data ?? [];
-  const periodTransactionSummaryRows = (periodTransactionSummaryResult.data ?? []) as Array<{
-    direction: string | null;
-    amount: number | string | null;
-    category: string | null;
-  }>;
+  const totalBalanceRows = (totalBalanceResult.data ?? []) as TransactionFinancialSummaryRow[];
+  const settledBalanceRows = totalBalanceRows.filter(shouldIncludeTransactionInFinancialRollups);
+  const periodTransactionSummaryRows =
+    (periodTransactionSummaryResult.data ?? []) as TransactionFinancialSummaryRow[];
+  const settledPeriodTransactionSummaryRows =
+    periodTransactionSummaryRows.filter(shouldIncludeTransactionInFinancialRollups);
   const recentTransactions = ((recentTransactionsResult.data ?? []) as TransactionRecord[]).map(mapTransactionRecord);
 
   const totalBalance = Number(
-    totalBalanceRows
+    settledBalanceRows
       .reduce((sum, transaction) => {
         const amount = Number(transaction.amount ?? 0);
         return sum + (transaction.direction === "income" ? amount : amount * -1);
@@ -287,21 +295,21 @@ export async function getTransactionOverview(
   );
 
   const periodIncome = Number(
-    periodTransactionSummaryRows
+    settledPeriodTransactionSummaryRows
       .filter((transaction) => transaction.direction === "income")
       .reduce((sum, transaction) => sum + Number(transaction.amount ?? 0), 0)
       .toFixed(2)
   );
 
   const periodExpense = Number(
-    periodTransactionSummaryRows
+    settledPeriodTransactionSummaryRows
       .filter((transaction) => transaction.direction !== "income")
       .reduce((sum, transaction) => sum + Number(transaction.amount ?? 0), 0)
       .toFixed(2)
   );
 
   const categorySpendMap = new Map<string, number>();
-  for (const transaction of periodTransactionSummaryRows.filter((item) => item.direction !== "income")) {
+  for (const transaction of settledPeriodTransactionSummaryRows.filter((item) => item.direction !== "income")) {
     const categoryLabel = formatTransactionLabel(transaction.category ?? "other");
     const amount = Number(transaction.amount ?? 0);
 
@@ -363,6 +371,12 @@ function getTransactionOverviewBudgetPeriod(period: TransactionOverviewPeriod) {
   }
 
   return period;
+}
+
+function shouldIncludeTransactionInFinancialRollups(
+  transaction: Pick<TransactionFinancialSummaryRow, "status">
+) {
+  return transaction.status !== "pending";
 }
 
 async function ingestParsedGmailTransaction(
