@@ -263,7 +263,7 @@ export function TransactionDashboard() {
                     </Pie>
                     <Tooltip
                       contentStyle={{
-                        backgroundColor: "#122338",
+                        backgroundColor: "#FFFFFF",
                         border: "1px solid #1E3251",
                         borderRadius: 12,
                         color: "#F0F4F8",
