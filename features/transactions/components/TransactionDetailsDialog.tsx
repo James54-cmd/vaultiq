@@ -7,10 +7,16 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
-  DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  TransactionDialogBody,
+  TransactionDialogFooterBar,
+  TransactionDialogHeaderFrame,
+  TransactionDialogHeading,
+  TransactionDialogSection,
+  transactionDialogContentClassName,
+} from "@/features/transactions/components/TransactionDialogScaffold";
 import type { Transaction } from "@/features/transactions/types/Transaction";
 import { formatTransactionLabel } from "@/features/transactions/utils/formatTransactionLabel";
 import { formatDatePickerLabel } from "@/lib/date";
@@ -54,7 +60,12 @@ function formatTimestamp(value: string) {
 
 function DetailField({ label, value, className, valueClassName }: DetailFieldProps) {
   return (
-    <div className={cn("rounded-xl border border-border bg-background/70 px-4 py-3", className)}>
+    <div
+      className={cn(
+        "rounded-2xl border border-border/70 bg-surface-raised/70 px-4 py-3 shadow-sm shadow-slate-950/5",
+        className
+      )}
+    >
       <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted">{label}</p>
       <p className={cn("mt-2 break-words text-sm font-medium text-foreground", valueClassName)}>{value}</p>
     </div>
@@ -73,18 +84,25 @@ export function TransactionDetailsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex min-h-[90vh] w-[calc(100vw-32px)] max-w-3xl flex-col gap-0 overflow-hidden rounded-2xl border border-border bg-surface p-0 text-foreground sm:w-full">
-        <DialogHeader className="shrink-0 border-b border-border px-4 py-5 text-left sm:px-6 sm:py-5">
+      <DialogContent className={transactionDialogContentClassName}>
+        <TransactionDialogHeaderFrame>
           <div className="flex items-start gap-3 pr-8">
             <BankAvatar name={transaction.bankName} initials={transaction.bankInitials} />
-            <div className="min-w-0 flex-1">
-              <DialogTitle className="truncate text-base font-semibold text-foreground sm:text-lg">
-                {transaction.merchant}
-              </DialogTitle>
-              <DialogDescription className="mt-1 text-sm text-muted">
-                Full transaction context, traceability details, and audit timestamps for this row.
-              </DialogDescription>
-              <div className="mt-3 flex flex-wrap items-center gap-2">
+            <div className="min-w-0 flex-1 space-y-3">
+              <TransactionDialogHeading
+                eyebrow="Transaction Record"
+                title={
+                  <DialogTitle className="truncate text-base font-semibold text-foreground sm:text-lg">
+                    {transaction.merchant}
+                  </DialogTitle>
+                }
+                description={
+                  <DialogDescription className="text-sm text-muted">
+                    Full transaction context, traceability details, and audit timestamps for this row.
+                  </DialogDescription>
+                }
+              />
+              <div className="my-3 flex flex-wrap items-center gap-2">
                 <Badge variant={statusVariant(transaction.status)}>
                   {formatTransactionLabel(transaction.status)}
                 </Badge>
@@ -94,40 +112,42 @@ export function TransactionDetailsDialog({
             </div>
           </div>
 
-          <div className="mt-4 bg-background/80 px-4 py-4">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted">
-                  Transaction Amount
-                </p>
-                <p
-                  className={cn(
-                    "financial-figure mt-2 text-2xl font-bold sm:text-3xl",
-                    transaction.signedAmount >= 0 ? "text-primary" : "text-error"
-                  )}
-                >
-                  {formatCurrency(transaction.signedAmount, transaction.currencyCode)}
-                </p>
-              </div>
-              <div className="space-y-1 text-left sm:text-right">
-                <p className="text-sm font-medium text-foreground">
+          <div className="mt-4 grid gap-3 rounded-[20px] p-3 shadow-sm shadow-slate-950/5 sm:p-4 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,0.9fr)]">
+            <div className="rounded-[18px] border border-border/70 bg-surface px-4 py-4 shadow-sm shadow-slate-950/5 sm:px-5 sm:py-5">
+              <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted">
+                Transaction Amount
+              </p>
+              <p
+                className={cn(
+                  "financial-figure mt-2 text-2xl font-bold sm:text-3xl",
+                  transaction.signedAmount >= 0 ? "text-primary" : "text-error"
+                )}
+              >
+                {formatCurrency(transaction.signedAmount, transaction.currencyCode)}
+              </p>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1 lg:gap-5">
+              <div className="rounded-[18px] border border-border/70 bg-surface px-4 py-4 shadow-sm shadow-slate-950/5">
+                <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted">Booked On</p>
+                <p className="mt-2 text-sm font-medium text-foreground">
                   {formatDatePickerLabel(transaction.happenedAt.slice(0, 10))}
                 </p>
-                <p className="text-sm text-muted">{transaction.bankName}</p>
+              </div>
+              <div className="rounded-[18px] border border-border/70 bg-surface px-4 py-4 shadow-sm shadow-slate-950/5">
+                <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted">Source Bank</p>
+                <p className="mt-2 text-sm text-muted">{transaction.bankName}</p>
               </div>
             </div>
           </div>
-        </DialogHeader>
+        </TransactionDialogHeaderFrame>
 
-        <div className="flex-1 overflow-y-auto px-4 py-5 sm:px-6 sm:py-5">
-          <div className="space-y-6">
-            <section className="space-y-3">
-              <div>
-                <p className="text-sm font-semibold text-foreground">Transaction Snapshot</p>
-                <p className="text-xs text-muted">
-                  Core ledger details visible at a glance for quick review.
-                </p>
-              </div>
+        <TransactionDialogBody>
+          <div className="space-y-4 sm:space-y-5">
+            <TransactionDialogSection
+              title="Transaction Snapshot"
+              description="Core ledger details visible at a glance for quick review."
+            >
               <div className="grid gap-3 sm:grid-cols-2">
                 <DetailField label="Merchant" value={transaction.merchant} />
                 <DetailField label="Category" value={transaction.categoryLabel} />
@@ -135,15 +155,12 @@ export function TransactionDetailsDialog({
                 <DetailField label="Reference Number" value={formatOptionalValue(transaction.referenceNumber)} />
                 <DetailField label="Notes" value={formatOptionalValue(transaction.notes, "No notes added")} />
               </div>
-            </section>
+            </TransactionDialogSection>
 
-            <section className="space-y-3">
-              <div>
-                <p className="text-sm font-semibold text-foreground">Source & Audit Trail</p>
-                <p className="text-xs text-muted">
-                  Read-only metadata that keeps the record explainable and traceable.
-                </p>
-              </div>
+            <TransactionDialogSection
+              title="Source & Audit Trail"
+              description="Read-only metadata that keeps the record explainable and traceable."
+            >
               <div className="grid gap-3 sm:grid-cols-2">
                 <DetailField label="Record ID" value={transaction.id} />
                 <DetailField label="Currency" value={transaction.currencyCode} />
@@ -162,26 +179,29 @@ export function TransactionDetailsDialog({
                   value={formatOptionalValue(transaction.gmailThreadId, "No Gmail thread")}
                 />
               </div>
-            </section>
+            </TransactionDialogSection>
           </div>
-        </div>
+        </TransactionDialogBody>
 
-        <DialogFooter className="shrink-0 border-t border-border px-4 py-4 sm:px-6">
-          <Button type="button" variant="secondary" onClick={() => onOpenChange(false)}>
-            Close
-          </Button>
-          {onEditTransaction ? (
-            <Button
-              type="button"
-              onClick={() => {
-                onOpenChange(false);
-                onEditTransaction(transaction);
-              }}
-            >
-              Edit Labels
+        <TransactionDialogFooterBar>
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button type="button" variant="secondary" className="w-full sm:w-auto" onClick={() => onOpenChange(false)}>
+              Close
             </Button>
-          ) : null}
-        </DialogFooter>
+            {onEditTransaction ? (
+              <Button
+                type="button"
+                className="w-full sm:w-auto"
+                onClick={() => {
+                  onOpenChange(false);
+                  onEditTransaction(transaction);
+                }}
+              >
+                Edit Labels
+              </Button>
+            ) : null}
+          </div>
+        </TransactionDialogFooterBar>
       </DialogContent>
     </Dialog>
   );

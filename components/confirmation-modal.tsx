@@ -35,7 +35,7 @@ export function ConfirmationModal({
 }: ConfirmationModalProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-full max-w-md border-border bg-surface-raised text-foreground px-4 py-6 sm:px-6 sm:py-8 rounded-xl">
+      <DialogContent className="max-w-md rounded-xl border-border bg-surface-raised px-4 py-6 text-foreground sm:px-6 sm:py-8">
         <DialogHeader className="gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-full border border-error/20 bg-error/10 text-error">
             <AlertTriangle className="h-5 w-5" />

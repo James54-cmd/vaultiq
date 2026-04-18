@@ -9,8 +9,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
-  DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
@@ -25,6 +23,14 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import {
+  TransactionDialogBody,
+  TransactionDialogFooterBar,
+  TransactionDialogHeaderFrame,
+  TransactionDialogHeading,
+  TransactionDialogSection,
+  transactionDialogContentClassName,
+} from "@/features/transactions/components/TransactionDialogScaffold";
 import { createManualTransactionFormSchema } from "@/features/transactions/schemas/transaction.schema";
 import {
   supportedBanks,
@@ -35,6 +41,7 @@ import {
 import { formatTransactionLabel } from "@/features/transactions/utils/formatTransactionLabel";
 import type { CreateManualTransactionInput, CreateManualTransactionFormInput } from "@/features/transactions/types/Transaction";
 import { ApiValidationError } from "@/lib/api-errors";
+import { cn } from "@/lib/utils";
 
 type QuickAddTransactionModalProps = {
   triggerLabel?: string;
@@ -79,21 +86,37 @@ export function QuickAddTransactionModal({
       <DialogTrigger asChild>
         <Button>{triggerLabel}</Button>
       </DialogTrigger>
-        <DialogContent
-          className="flex h-[calc(100vh-32px)] w-3xl max-w-3xl flex-col overflow-hidden rounded-xl border border-border bg-surface-raised p-0 text-foreground"
-        >
-        {/* Header */}
-        <DialogHeader className="shrink-0 border-b border-border px-6 py-5">
-          <DialogTitle className="text-base font-semibold text-foreground">
-            Quick Add Transaction
-          </DialogTitle>
-          <DialogDescription className="text-sm text-muted">
-            Log manual cash spend, income, or transfers without waiting for a receipt email.
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent className={cn(transactionDialogContentClassName, "bg-surface-raised")}>
+        <TransactionDialogHeaderFrame className="pr-8">
+          <TransactionDialogHeading
+            eyebrow="Manual Entry"
+            title={<DialogTitle className="text-base font-semibold text-foreground sm:text-lg">Quick Add Transaction</DialogTitle>}
+            description={
+              <DialogDescription className="text-sm text-muted">
+                Log cash spend, income, or transfers without waiting for a receipt email.
+              </DialogDescription>
+            }
+          />
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="rounded-2xl border border-border/70 bg-surface px-4 py-3 shadow-sm shadow-slate-950/5">
+              <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted">Direction</p>
+              <p className="mt-2 text-sm font-medium text-foreground">{formatTransactionLabel(values.direction)}</p>
+            </div>
+            <div className="rounded-2xl border border-border/70 bg-surface px-4 py-3 shadow-sm shadow-slate-950/5">
+              <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted">Status</p>
+              <p className="mt-2 text-sm font-medium text-foreground">
+                {formatTransactionLabel(values.status ?? "completed")}
+              </p>
+            </div>
+            <div className="rounded-2xl border border-border/70 bg-surface px-4 py-3 shadow-sm shadow-slate-950/5 sm:col-span-2 lg:col-span-1">
+              <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted">Bank</p>
+              <p className="mt-2 text-sm font-medium text-foreground">{values.bankName}</p>
+            </div>
+          </div>
+        </TransactionDialogHeaderFrame>
 
         <form
-          className="flex min-h-0 flex-1 flex-col"
+          className="flex min-h-0 flex-1 flex-col overflow-hidden"
           onSubmit={async (event) => {
             event.preventDefault();
             setIsPending(true);
@@ -126,18 +149,13 @@ export function QuickAddTransactionModal({
             }
           }}
         >
-          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+          <TransactionDialogBody>
             <div className="space-y-6">
-
-              {/* ── Transaction Details ── */}
-              <div className="space-y-3">
-                <div>
-                  <p className="text-sm font-medium text-foreground">Transaction Details</p>
-                  <p className="mt-0.5 text-xs text-muted">Set the movement type, amount, and source account.</p>
-                </div>
-                <hr />
-
-                <div className="grid gap-3 sm:grid-cols-3">
+              <TransactionDialogSection
+                title="Transaction Details"
+                description="Set the movement type, amount, timing, and source account."
+              >
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   <div className="space-y-1.5">
                     <Label htmlFor="transaction-direction" className="text-xs text-muted">Direction</Label>
                     <Select
@@ -187,7 +205,7 @@ export function QuickAddTransactionModal({
                   </div>
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-3">
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   <div className="space-y-1.5">
                     <Label htmlFor="transaction-bank" className="text-xs text-muted">Bank</Label>
                     <Select
@@ -252,15 +270,12 @@ export function QuickAddTransactionModal({
                     <FieldError message={fieldErrors.status?.[0]} />
                   </div>
                 </div>
-              </div>
+              </TransactionDialogSection>
 
-              {/* ── Ledger Context ── */}
-              <div className="space-y-3">
-                <div>
-                  <p className="text-sm font-medium text-foreground">Ledger Context</p>
-                  <p className="mt-0.5 text-xs text-muted">Add the merchant, summary, and optional reconciliation notes.</p>
-                </div>
-                <hr />
+              <TransactionDialogSection
+                title="Ledger Context"
+                description="Add merchant context, a ledger summary, and any notes needed for later reconciliation."
+              >
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="space-y-1.5">
                     <Label htmlFor="transaction-merchant" className="text-xs text-muted">Merchant</Label>
@@ -319,25 +334,29 @@ export function QuickAddTransactionModal({
                   />
                   <FieldError message={fieldErrors.notes?.[0]} />
                 </div>
-              </div>
-
+              </TransactionDialogSection>
             </div>
-          </div>
+          </TransactionDialogBody>
 
-          {/* Footer */}
-          <DialogFooter className="shrink-0 border-t border-border px-6 py-4">
-            <div className="flex w-full flex-col gap-3 py-2 sm:flex-row sm:justify-end">
+          <TransactionDialogFooterBar className="bg-surface-raised/95">
+            <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               {formError ? <FieldError message={formError} /> : null}
-              <div className="flex justify-end gap-2">
-                <Button type="button" variant="secondary" onClick={() => setOpen(false)} disabled={isPending}>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="w-full sm:w-auto"
+                  onClick={() => setOpen(false)}
+                  disabled={isPending}
+                >
                   Cancel
                 </Button>
-                <Button type="submit" disabled={isPending}>
+                <Button type="submit" className="w-full sm:w-auto" disabled={isPending}>
                   {isPending ? "Saving..." : "Save Transaction"}
                 </Button>
               </div>
             </div>
-          </DialogFooter>
+          </TransactionDialogFooterBar>
         </form>
       </DialogContent>
     </Dialog>
