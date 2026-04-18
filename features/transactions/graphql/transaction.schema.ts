@@ -33,6 +33,7 @@ const transactionGraphqlSchema = buildSchema(`
     daily
     monthly
     yearly
+    allTime
   }
 
   enum TransactionCategory {

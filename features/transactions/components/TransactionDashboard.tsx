@@ -43,7 +43,31 @@ const summaryCardKeys = [
 ] as const;
 
 function formatOverviewPeriodLabel(period: TransactionOverviewPeriod) {
+  if (period === "allTime") {
+    return "All Time";
+  }
+
   return `${period.charAt(0).toUpperCase()}${period.slice(1)}`;
+}
+
+function getBudgetLeftLabel(period: TransactionOverviewPeriod, periodLabel: string) {
+  if (period === "allTime") {
+    return "Active Budget Left";
+  }
+
+  return `${periodLabel} Budget Left`;
+}
+
+function getBudgetLimitLabel(period: TransactionOverviewPeriod, periodLabel: string) {
+  if (period === "daily") {
+    return "Monthly Budget Limit";
+  }
+
+  if (period === "allTime") {
+    return "Active Budget Limit";
+  }
+
+  return `${periodLabel} Budget Limit`;
 }
 
 export function TransactionDashboard() {
@@ -62,7 +86,7 @@ export function TransactionDashboard() {
     },
     {
       ...summaryCardKeys[2],
-      label: `${periodLabel} Budget Left`,
+      label: getBudgetLeftLabel(period, periodLabel),
     },
   ] as const;
 
@@ -189,7 +213,7 @@ export function TransactionDashboard() {
               )}
             </div>
             <div className="rounded-lg border border-border bg-background px-4 py-4">
-              <p className="text-sm text-muted">{period === "daily" ? "Monthly Budget Limit" : `${periodLabel} Budget Limit`}</p>
+              <p className="text-sm text-muted">{getBudgetLimitLabel(period, periodLabel)}</p>
               {isPending ? (
                 <Skeleton className="mt-3 h-7 w-28" />
               ) : (

@@ -194,8 +194,26 @@ export async function getTransactionOverview(
   query?: unknown
 ): Promise<TransactionOverview> {
   const parsedQuery = transactionOverviewQuerySchema.parse(query ?? {});
-  const periodStart = getTransactionOverviewStart(parsedQuery.period).toISOString();
-  const budgetPeriod = parsedQuery.period === "daily" ? "monthly" : parsedQuery.period;
+  const periodStart = getTransactionOverviewStart(parsedQuery.period);
+  const budgetPeriod = getTransactionOverviewBudgetPeriod(parsedQuery.period);
+
+  let periodTransactionsQuery = supabase
+    .from("transactions")
+    .select("*")
+    .order("happened_at", { ascending: false });
+
+  if (periodStart) {
+    periodTransactionsQuery = periodTransactionsQuery.gte("happened_at", periodStart.toISOString());
+  }
+
+  let budgetsQuery = supabase
+    .from("budgets")
+    .select("limit_amount, spent_amount")
+    .eq("status", "active");
+
+  if (budgetPeriod) {
+    budgetsQuery = budgetsQuery.eq("period", budgetPeriod);
+  }
 
   const [
     totalBalanceResult,
@@ -205,16 +223,8 @@ export async function getTransactionOverview(
     supabase
       .from("transactions")
       .select("direction, amount"),
-    supabase
-      .from("transactions")
-      .select("*")
-      .gte("happened_at", periodStart)
-      .order("happened_at", { ascending: false }),
-    supabase
-      .from("budgets")
-      .select("limit_amount, spent_amount")
-      .eq("period", budgetPeriod)
-      .eq("status", "active"),
+    periodTransactionsQuery,
+    budgetsQuery,
   ]);
 
   if (totalBalanceResult.error) {
@@ -291,6 +301,10 @@ export async function getTransactionOverview(
 function getTransactionOverviewStart(period: TransactionOverviewPeriod) {
   const now = new Date();
 
+  if (period === "allTime") {
+    return null;
+  }
+
   if (period === "daily") {
     return startOfDay(now);
   }
@@ -300,4 +314,16 @@ function getTransactionOverviewStart(period: TransactionOverviewPeriod) {
   }
 
   return startOfMonth(now);
+}
+
+function getTransactionOverviewBudgetPeriod(period: TransactionOverviewPeriod) {
+  if (period === "daily") {
+    return "monthly";
+  }
+
+  if (period === "allTime") {
+    return null;
+  }
+
+  return period;
 }

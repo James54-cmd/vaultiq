@@ -1,7 +1,7 @@
 export const transactionDirections = ["income", "expense", "transfer"] as const;
 export const transactionSources = ["manual", "gmail"] as const;
 export const transactionStatuses = ["completed", "pending", "flagged"] as const;
-export const transactionOverviewPeriods = ["daily", "monthly", "yearly"] as const;
+export const transactionOverviewPeriods = ["daily", "monthly", "yearly", "allTime"] as const;
 
 export const transactionCategories = [
   "food",
