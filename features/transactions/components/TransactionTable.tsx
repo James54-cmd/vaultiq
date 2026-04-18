@@ -1,5 +1,7 @@
 "use client";
 
+import type { ReactNode } from "react";
+
 import { BankAvatar } from "@/components/bank-avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,6 +15,7 @@ import { cn } from "@/lib/utils";
 type TransactionTableProps = {
   title: string;
   description: string;
+  toolbar?: ReactNode;
   transactions: Transaction[];
   isPending?: boolean;
   pagination?: TransactionListPagination | null;
@@ -31,6 +34,7 @@ function statusVariant(status: Transaction["status"]) {
 export function TransactionTable({
   title,
   description,
+  toolbar,
   transactions,
   isPending = false,
   pagination,
@@ -47,9 +51,12 @@ export function TransactionTable({
 
   return (
     <Card className="border-border bg-surface">
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-        <p className="text-sm text-muted">{description}</p>
+      <CardHeader className="space-y-4">
+        <div className="space-y-1">
+          <CardTitle>{title}</CardTitle>
+          <p className="text-sm text-muted">{description}</p>
+        </div>
+        {toolbar ? <div>{toolbar}</div> : null}
       </CardHeader>
       <CardContent>
         <div
