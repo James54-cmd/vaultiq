@@ -221,6 +221,16 @@ export function VaultIQShell({ children }: { children: ReactNode }) {
                         </p>
                       </div>
                     </div>
+                    {/* Settings link for mobile profile dropdown */}
+                    <div>
+                      <Link
+                        href="/settings"
+                        className="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-foreground hover:bg-accent-muted transition"
+                      >
+                        <Settings className="h-4 w-4" />
+                        Settings
+                      </Link>
+                    </div>
                     <div className="border-t border-border/70 pt-4">
                       <Button
                         type="button"
