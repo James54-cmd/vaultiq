@@ -22,6 +22,7 @@ const bankAliases = [
   { bankName: "AUB", aliases: ["aub", "asia united bank"] },
   { bankName: "GCash", aliases: ["gcash"] },
   { bankName: "Maya", aliases: ["maya", "paymaya"] },
+  { bankName: "Atome", aliases: ["atome", "atome card"] },
   { bankName: "ShopeePay", aliases: ["shopeepay", "shopee pay"] },
   { bankName: "Coins.ph", aliases: ["coins.ph", "coins ph"] },
   { bankName: "Tonik", aliases: ["tonik"] },
@@ -209,7 +210,9 @@ const labeledAmountMatchers = [
 
 const postedTransactionSignalPatterns = [
   /(?:payment (?:successful|succeeded|completed|confirmed|received|posted))/i,
+  /(?:payment of\s*(?:(?:PHP|USD)(?=\s*[0-9])|₱|\$|\bP(?=\s?\d))?\s*[0-9][0-9,]*(?:\.[0-9]{1,2})?.{0,120}successfully processed)/i,
   /(?:transaction (?:successful|completed|posted))/i,
+  /(?:transaction.{0,120}successfully processed)/i,
   /(?:transfer (?:successful|completed|received|sent))/i,
   /\btransfer\b[\s\S]{0,80}\b(?:is|was)\s+(?:successful|completed|confirmed)\b/i,
   /(?:money received)|(?:received amount)|(?:credited amount)|(?:debited amount)/i,
@@ -509,6 +512,14 @@ function parseMerchant(content: string, from: string) {
   const labeledMerchant = sanitizeMerchantCandidate(labeledMatch?.[1]);
   if (labeledMerchant) {
     return labeledMerchant;
+  }
+
+  const paymentForMatch = content.match(
+    /(?:payment of\s*(?:(?:PHP|USD)(?=\s*[0-9])|₱|\$|\bP(?=\s?\d))?\s*[0-9][0-9,]*(?:\.[0-9]{1,2})?\s+for\s+)([A-Za-z0-9&.,'()\/ -]{3,120}?)(?=\s+using\s+(?:your|the)\b|\s+has been\b|\s+was\b|[.\n\r])/i
+  );
+  const paymentForMerchant = sanitizeMerchantCandidate(paymentForMatch?.[1]);
+  if (paymentForMerchant) {
+    return paymentForMerchant;
   }
 
   const receivedFromMatch = content.match(/(?:from)\s+([A-Za-z0-9&.,' -]{3,80})/i);

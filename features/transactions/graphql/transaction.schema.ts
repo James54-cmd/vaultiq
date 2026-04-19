@@ -69,6 +69,7 @@ const transactionGraphqlSchema = buildSchema(`
     AUB
     GCash
     Maya
+    Atome
     ShopeePay
     Coins_ph
     Tonik

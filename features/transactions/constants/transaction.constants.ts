@@ -36,6 +36,7 @@ export const supportedBanks = [
   "AUB",
   "GCash",
   "Maya",
+  "Atome",
   "ShopeePay",
   "Coins.ph",
   "Tonik",

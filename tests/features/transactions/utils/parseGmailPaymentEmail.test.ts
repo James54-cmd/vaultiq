@@ -311,3 +311,63 @@ test("still parses real posted UnionBank transfer notifications", () => {
   assert.equal(result.transaction.amount, 1250);
   assert.equal(result.transaction.referenceNumber, "FT123456789");
 });
+
+test("recognizes Atome as a supported provider for posted transaction emails", () => {
+  const message = createPlainTextMessage({
+    id: "atome-transaction-posted",
+    subject: "Atome Card transaction posted",
+    from: "Atome <no-reply@atome.ph>",
+    snippet: "Transaction posted. Amount paid: PHP 999.00",
+    body: [
+      "Your Atome Card transaction posted successfully.",
+      "Amount paid: PHP 999.00",
+      "Merchant: Example Store",
+      "Reference No: AT123456789",
+    ].join("\n"),
+  });
+
+  const result = parseGmailPaymentEmail(message);
+
+  assert.equal(result.kind, "parsed");
+
+  if (result.kind !== "parsed") {
+    return;
+  }
+
+  assert.equal(result.transaction.bankName, "Atome");
+  assert.equal(result.transaction.amount, 999);
+  assert.equal(result.transaction.referenceNumber, "AT123456789");
+});
+
+test("parses the Atome sample email wording that says payment has been successfully processed", () => {
+  const message = createPlainTextMessage({
+    id: "atome-processed-payment",
+    subject: "Your Atome Card payment was successfully processed",
+    from: "Atome Card <no-reply@atome.ph>",
+    snippet:
+      "Your payment of ₱107.15 for COLONNADE SUPERMARKET CEBU PHL using your Atome Card ending in *8146 has been successfully processed.",
+    body: [
+      "We are pleased to inform you that your payment of ₱107.15 for COLONNADE SUPERMARKET CEBU PHL using your Atome Card ending in *8146 has been successfully processed.",
+      "",
+      "Thank you for using Atome.",
+      "",
+      "You can access your Loan Schedule Agreement via Atome App under Transaction Details once the transaction has been fully processed with the merchant.",
+      "",
+      "We look forward to serving you again in the future.",
+      "Your friends at Atome Card",
+    ].join("\n"),
+  });
+
+  const result = parseGmailPaymentEmail(message);
+
+  assert.equal(result.kind, "parsed");
+
+  if (result.kind !== "parsed") {
+    return;
+  }
+
+  assert.equal(result.transaction.bankName, "Atome");
+  assert.equal(result.transaction.amount, 107.15);
+  assert.equal(result.transaction.merchant, "COLONNADE SUPERMARKET CEBU PHL");
+  assert.equal(result.transaction.direction, "expense");
+});
