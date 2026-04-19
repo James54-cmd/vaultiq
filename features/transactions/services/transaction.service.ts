@@ -10,6 +10,7 @@ import {
   transactionQuerySchema,
   updateTransactionEditableFieldsSchema,
 } from "@/features/transactions/schemas/transaction.schema";
+import { listBudgets } from "@/features/budgets/services/budget.service";
 import type {
   GmailSyncResult,
   ParsedGmailTransaction,
@@ -238,27 +239,18 @@ export async function getTransactionOverview(
     recentTransactionsQuery = recentTransactionsQuery.gte("happened_at", periodStartIso);
   }
 
-  let budgetsQuery = supabase
-    .from("budgets")
-    .select("limit_amount, spent_amount")
-    .eq("status", "active");
-
-  if (budgetPeriod) {
-    budgetsQuery = budgetsQuery.eq("period", budgetPeriod);
-  }
-
   const [
     totalBalanceResult,
     periodTransactionSummaryResult,
     recentTransactionsResult,
-    budgetsResult,
+    budgets,
   ] = await Promise.all([
     supabase
       .from("transactions")
       .select("direction, amount, status"),
     periodTransactionSummaryQuery,
     recentTransactionsQuery,
-    budgetsQuery,
+    listBudgets(supabase, budgetPeriod ? { period: budgetPeriod, status: "active" } : { status: "active" }),
   ]);
 
   if (totalBalanceResult.error) {
@@ -271,10 +263,6 @@ export async function getTransactionOverview(
 
   if (recentTransactionsResult.error) {
     throw new Error(recentTransactionsResult.error.message);
-  }
-
-  if (budgetsResult.error) {
-    throw new Error(budgetsResult.error.message);
   }
 
   const totalBalanceRows = (totalBalanceResult.data ?? []) as TransactionFinancialSummaryRow[];
@@ -319,12 +307,11 @@ export async function getTransactionOverview(
     );
   }
 
-  const budgets = budgetsResult.data ?? [];
   const budgetLimit = Number(
-    budgets.reduce((sum, budget) => sum + Number(budget.limit_amount ?? 0), 0).toFixed(2)
+    budgets.reduce((sum, budget) => sum + Number(budget.limitAmount ?? 0), 0).toFixed(2)
   );
   const trackedBudgetSpent = Number(
-    budgets.reduce((sum, budget) => sum + Number(budget.spent_amount ?? 0), 0).toFixed(2)
+    budgets.reduce((sum, budget) => sum + Number(budget.spentAmount ?? 0), 0).toFixed(2)
   );
 
   return {

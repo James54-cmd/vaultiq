@@ -500,6 +500,10 @@ function sanitizeMerchantCandidate(value: string | null | undefined) {
     return null;
   }
 
+  if (!/[A-Za-z0-9]/.test(normalized)) {
+    return null;
+  }
+
   if (disallowedMerchantCandidatePatterns.some((pattern) => pattern.test(normalized))) {
     return null;
   }

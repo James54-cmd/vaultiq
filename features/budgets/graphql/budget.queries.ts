@@ -8,6 +8,7 @@ export const GET_BUDGETS_QUERY = `
     budgetSummary(period: $period, status: $status, category: $category) {
       totalLimitAmount
       totalSpentAmount
+      totalRemainingAmount
       utilizationRate
       budgetCount
     }

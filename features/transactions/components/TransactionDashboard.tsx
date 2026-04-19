@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useFinancialAccounts } from "@/features/accounts/hooks/useFinancialAccounts";
 import { GmailConnectionCard } from "@/features/gmail/components/GmailConnectionCard";
 import { useGmailConnection } from "@/features/gmail/hooks/useGmailConnection";
 import { GmailSyncSummaryPanel } from "@/features/transactions/components/GmailSyncSummaryPanel";
@@ -27,7 +28,7 @@ import { isGmailSyncEnabled } from "@/lib/app-config";
 const summaryCardKeys = [
   {
     key: "totalBalance",
-    label: "Total Balance",
+    label: "Cash Position",
     icon: Wallet,
   },
   {
@@ -77,6 +78,7 @@ export function TransactionDashboard() {
     useGmailConnection(gmailSyncEnabled);
   const { overview, period, setPeriod, error, isPending, reloadOverview } = useTransactionOverview();
   const { createTransaction, syncGmailTransactions, isSyncingGmail } = useTransactions();
+  const { summary: netWorthSummary, isPending: isAccountsPending } = useFinancialAccounts();
   const periodLabel = formatOverviewPeriodLabel(period);
   const summaryCards = [
     summaryCardKeys[0],
@@ -148,6 +150,56 @@ export function TransactionDashboard() {
       ) : null}
 
       {gmailSyncResult ? <GmailSyncSummaryPanel result={gmailSyncResult} /> : null}
+
+      <Card className="overflow-hidden border-secondary/20 bg-surface-raised">
+        <CardContent className="grid gap-4 px-6 py-6 lg:grid-cols-[1.1fr_0.9fr]">
+          <div className="space-y-2">
+            <p className="text-sm uppercase tracking-widest text-secondary">Net Worth</p>
+            {isAccountsPending || !netWorthSummary ? (
+              <Skeleton className="h-10 w-48" />
+            ) : (
+              <p className={`financial-figure text-4xl font-bold tracking-tightest ${netWorthSummary.totalNetWorth >= 0 ? "text-primary" : "text-error"}`}>
+                {formatCurrency(netWorthSummary.totalNetWorth, netWorthSummary.primaryCurrencyCode)}
+              </p>
+            )}
+            <p className="text-sm text-muted">
+              Aggregated from your account ledger in {netWorthSummary?.primaryCurrencyCode ?? "PHP"}.
+            </p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="rounded-xl border border-border bg-background/30 p-4">
+              <p className="text-xs uppercase tracking-widest text-muted">Assets</p>
+              {isAccountsPending || !netWorthSummary ? (
+                <Skeleton className="mt-3 h-6 w-20" />
+              ) : (
+                <p className="financial-figure pt-3 text-lg font-semibold text-primary">
+                  {formatCurrency(netWorthSummary.totalAssets, netWorthSummary.primaryCurrencyCode)}
+                </p>
+              )}
+            </div>
+            <div className="rounded-xl border border-border bg-background/30 p-4">
+              <p className="text-xs uppercase tracking-widest text-muted">Liabilities</p>
+              {isAccountsPending || !netWorthSummary ? (
+                <Skeleton className="mt-3 h-6 w-20" />
+              ) : (
+                <p className="financial-figure pt-3 text-lg font-semibold text-error">
+                  {formatCurrency(netWorthSummary.totalLiabilities, netWorthSummary.primaryCurrencyCode)}
+                </p>
+              )}
+            </div>
+            <div className="rounded-xl border border-border bg-background/30 p-4">
+              <p className="text-xs uppercase tracking-widest text-muted">Included</p>
+              {isAccountsPending || !netWorthSummary ? (
+                <Skeleton className="mt-3 h-6 w-12" />
+              ) : (
+                <p className="financial-figure pt-3 text-lg font-semibold text-foreground">
+                  {netWorthSummary.includedAccountCount.toFixed(0)}
+                </p>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid gap-4 md:grid-cols-3">
         {summaryCards.map((card) => {

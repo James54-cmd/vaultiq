@@ -17,6 +17,7 @@ export type BudgetQuery = z.infer<typeof budgetQuerySchema>;
 export type BudgetSummary = {
   totalLimitAmount: number;
   totalSpentAmount: number;
+  totalRemainingAmount: number;
   utilizationRate: number;
   budgetCount: number;
 };

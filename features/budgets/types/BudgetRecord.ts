@@ -8,6 +8,7 @@ export type BudgetRecord = {
   starts_at: string;
   ends_at: string;
   status: "active" | "archived";
+  alert_threshold_percent: number;
   notes: string | null;
   created_at: string;
   updated_at: string;
@@ -22,6 +23,7 @@ export type CreateBudgetRpcParams = {
   p_starts_at: string;
   p_ends_at: string;
   p_status?: "active" | "archived";
+  p_alert_threshold_percent?: number;
   p_notes?: string | null;
 };
 
@@ -35,6 +37,7 @@ export type UpdateBudgetRpcParams = {
   p_starts_at?: string;
   p_ends_at?: string;
   p_status?: "active" | "archived";
+  p_alert_threshold_percent?: number;
   p_notes?: string | null;
 };
 

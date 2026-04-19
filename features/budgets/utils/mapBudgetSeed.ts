@@ -16,8 +16,21 @@ type BudgetSeedRecord = {
 };
 
 export function mapBudgetSeed(record: BudgetSeedRecord): Budget {
+  const utilizationRate = record.limitAmount === 0 ? 0 : Number(((record.spentAmount / record.limitAmount) * 100).toFixed(2));
+
   return {
     ...record,
     notes: record.notes ?? null,
+    alertThresholdPercent: 80,
+    remainingAmount: Number((record.limitAmount - record.spentAmount).toFixed(2)),
+    utilizationRate,
+    alertState:
+      record.limitAmount === 0
+        ? "healthy"
+        : record.spentAmount >= record.limitAmount
+          ? "over"
+          : utilizationRate >= 80
+            ? "warning"
+            : "healthy",
   };
 }

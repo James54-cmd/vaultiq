@@ -52,10 +52,10 @@ const initialFormState: CreateBudgetFormInput = {
   category: "",
   period: "monthly",
   limitAmount: "",
-  spentAmount: "",
   currencyCode: "PHP",
   startsAt: "",
   endsAt: "",
+  alertThresholdPercent: "80",
   notes: "",
 };
 
@@ -68,10 +68,10 @@ function toFormState(budget?: Budget): CreateBudgetFormInput {
     category: budget.category,
     period: budget.period,
     limitAmount: budget.limitAmount.toFixed(2),
-    spentAmount: budget.spentAmount.toFixed(2),
     currencyCode: budget.currencyCode,
     startsAt: budget.startsAt,
     endsAt: budget.endsAt,
+    alertThresholdPercent: budget.alertThresholdPercent.toFixed(2),
     notes: budget.notes ?? "",
   };
 }
@@ -182,8 +182,8 @@ export function BudgetModal({ budget, onSubmit }: BudgetModalProps) {
             description={
               <DialogDescription className="text-sm leading-5 text-muted">
                 {isEditMode
-                  ? "Adjust the cadence, allocation, and notes for this budget."
-                  : "Set a category limit with the dates and amount you want to track."}
+                  ? "Adjust the cadence, cap, and warning threshold for this budget."
+                  : "Set a category limit with the dates and threshold you want VaultIQ to monitor."}
               </DialogDescription>
             }
           />
@@ -253,27 +253,24 @@ export function BudgetModal({ budget, onSubmit }: BudgetModalProps) {
 
               <DialogShellSection
                 title="Allocation"
-                description="Set the currency, cap, and optional current spend if you are backfilling an existing budget."
+                description="Set the currency, cap, and warning threshold that should trigger before you hit the limit."
               >
-                <div className="grid gap-3 sm:grid-cols-2">
+                <div className="grid gap-3 sm:grid-cols-3">
                   <div className="grid gap-1.5">
                     <Label htmlFor="currencyCode" className="text-xs text-muted">Currency</Label>
                     <Select
                       value={formState.currencyCode}
                       onValueChange={(value) =>
-                        setFormState((current) => ({
-                          ...current,
-                          currencyCode: value,
-                        }))
+                        setFormState((current) => ({ ...current, currencyCode: value }))
                       }
                     >
                       <SelectTrigger id="currencyCode" className={budgetFieldClassName}>
-                        <SelectValue placeholder="Select currency" />
+                        <SelectValue placeholder="Currency" />
                       </SelectTrigger>
-                      <SelectContent side="bottom">
-                        {currencyOptions.map((currency) => (
-                          <SelectItem key={currency.value} value={currency.value}>
-                            {currency.label}
+                      <SelectContent>
+                        {currencyOptions.map((currencyOption) => (
+                          <SelectItem key={currencyOption.value} value={currencyOption.value}>
+                            {currencyOption.label}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -287,71 +284,58 @@ export function BudgetModal({ budget, onSubmit }: BudgetModalProps) {
                       id="limitAmount"
                       value={formState.limitAmount}
                       onChange={(event) =>
-                        setFormState((current) => ({
-                          ...current,
-                          limitAmount: event.target.value,
-                        }))
+                        setFormState((current) => ({ ...current, limitAmount: event.target.value }))
                       }
-                      currencyCode={formState.currencyCode}
                       className={budgetFieldClassName}
                     />
                     <FieldError message={fieldErrors.limitAmount} />
                   </div>
-                </div>
 
-                <div className="grid gap-1.5">
-                  <Label htmlFor="spentAmount" className="text-xs text-muted">Starting Spent Amount</Label>
-                  <CurrencyInput
-                    id="spentAmount"
-                    value={formState.spentAmount ?? ""}
-                    onChange={(event) =>
-                      setFormState((current) => ({
-                        ...current,
-                        spentAmount: event.target.value,
-                      }))
-                    }
-                    placeholder="Optional"
-                    currencyCode={formState.currencyCode}
-                    className={budgetFieldClassName}
-                  />
-                  <p className="text-xs leading-5 text-muted">
-                    Leave this blank for a fresh budget, or set it if you are carrying over existing spend.
-                  </p>
-                  <FieldError message={fieldErrors.spentAmount} />
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="alertThresholdPercent" className="text-xs text-muted">Alert Threshold %</Label>
+                    <Input
+                      id="alertThresholdPercent"
+                      inputMode="decimal"
+                      value={formState.alertThresholdPercent ?? "80"}
+                      onChange={(event) =>
+                        setFormState((current) => ({ ...current, alertThresholdPercent: event.target.value }))
+                      }
+                      className={budgetFieldClassName}
+                    />
+                    <FieldError message={fieldErrors.alertThresholdPercent} />
+                  </div>
                 </div>
               </DialogShellSection>
 
               <DialogShellSection
-                title="Timeline & Notes"
-                description="Define when the budget window starts and ends, plus any context for the team or your future self."
+                title="Tracking Window"
+                description="Use local calendar dates for the range this budget should watch."
               >
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="grid gap-1.5">
-                    <Label htmlFor="startsAt" className="text-xs text-muted">Start Date</Label>
+                    <Label className="text-xs text-muted">Start Date</Label>
                     <DatePicker
                       value={formState.startsAt}
-                      onChange={(value) =>
-                        setFormState((current) => ({ ...current, startsAt: value }))
-                      }
-                      placeholder="Select start date"
-                      className={budgetFieldClassName}
+                      onChange={(value) => setFormState((current) => ({ ...current, startsAt: value }))}
                     />
                     <FieldError message={fieldErrors.startsAt} />
                   </div>
+
                   <div className="grid gap-1.5">
-                    <Label htmlFor="endsAt" className="text-xs text-muted">End Date</Label>
+                    <Label className="text-xs text-muted">End Date</Label>
                     <DatePicker
                       value={formState.endsAt}
-                      onChange={(value) =>
-                        setFormState((current) => ({ ...current, endsAt: value }))
-                      }
-                      placeholder="Select end date"
-                      className={budgetFieldClassName}
+                      onChange={(value) => setFormState((current) => ({ ...current, endsAt: value }))}
                     />
                     <FieldError message={fieldErrors.endsAt} />
                   </div>
                 </div>
+              </DialogShellSection>
 
+              <DialogShellSection
+                title="Notes"
+                description="Capture context that explains why the cap exists or when it should be revisited."
+              >
                 <div className="grid gap-1.5">
                   <Label htmlFor="notes" className="text-xs text-muted">Notes</Label>
                   <Textarea
@@ -360,7 +344,7 @@ export function BudgetModal({ budget, onSubmit }: BudgetModalProps) {
                     onChange={(event) =>
                       setFormState((current) => ({ ...current, notes: event.target.value }))
                     }
-                    placeholder="Optional operating note for this budget."
+                    placeholder="Optional notes about this budget."
                     className={budgetTextareaClassName}
                   />
                   <FieldError message={fieldErrors.notes} />
@@ -369,23 +353,15 @@ export function BudgetModal({ budget, onSubmit }: BudgetModalProps) {
             </div>
           </DialogShellBody>
 
-          <DialogShellFooterBar className="bg-surface-raised/95">
-            <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <FieldError message={error} className="text-sm" />
-
-              <div className="flex flex-col gap-2 sm:flex-row">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  className="w-full sm:w-auto"
-                  onClick={() => setOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" className="w-full sm:w-auto" disabled={isSubmitting}>
-                  {isSubmitting ? "Saving..." : isEditMode ? "Update Budget" : "Save Budget"}
-                </Button>
-              </div>
+          <DialogShellFooterBar>
+            <div className="flex w-full flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              {error ? <p className="mr-auto text-sm text-error">{error}</p> : null}
+              <Button type="button" variant="secondary" onClick={() => setOpen(false)} disabled={isSubmitting}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? "Saving..." : isEditMode ? "Save Changes" : "Create Budget"}
+              </Button>
             </div>
           </DialogShellFooterBar>
         </form>

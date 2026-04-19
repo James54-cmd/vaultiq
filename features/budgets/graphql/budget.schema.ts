@@ -29,10 +29,14 @@ const budgetGraphqlSchema = buildSchema(`
     period: BudgetPeriod!
     limitAmount: Float!
     spentAmount: Float!
+    remainingAmount: Float!
+    utilizationRate: Float!
+    alertState: String!
     currencyCode: String!
     startsAt: String!
     endsAt: String!
     status: BudgetStatus!
+    alertThresholdPercent: Float!
     notes: String
     createdAt: String!
     updatedAt: String!
@@ -41,6 +45,7 @@ const budgetGraphqlSchema = buildSchema(`
   type BudgetSummary {
     totalLimitAmount: Float!
     totalSpentAmount: Float!
+    totalRemainingAmount: Float!
     utilizationRate: Float!
     budgetCount: Int!
   }
@@ -49,11 +54,11 @@ const budgetGraphqlSchema = buildSchema(`
     category: String!
     period: BudgetPeriod!
     limitAmount: Float!
-    spentAmount: Float
     currencyCode: String!
     startsAt: String!
     endsAt: String!
     status: BudgetStatus!
+    alertThresholdPercent: Float
     notes: String
   }
 
@@ -61,11 +66,11 @@ const budgetGraphqlSchema = buildSchema(`
     category: String
     period: BudgetPeriod
     limitAmount: Float
-    spentAmount: Float
     currencyCode: String
     startsAt: String
     endsAt: String
     status: BudgetStatus
+    alertThresholdPercent: Float
     notes: String
   }
 
