@@ -12,6 +12,40 @@ function encodeBase64Url(value: string) {
     .replace(/=+$/g, "");
 }
 
+function createPlainTextMessage(input: {
+  id: string;
+  threadId?: string;
+  subject: string;
+  from: string;
+  snippet: string;
+  body: string;
+  internalDate?: string;
+}): GmailMessageDetail {
+  return {
+    id: input.id,
+    threadId: input.threadId ?? `${input.id}-thread`,
+    snippet: input.snippet,
+    internalDate:
+      input.internalDate ?? String(Date.parse("2026-04-19T12:00:00+08:00")),
+    payload: {
+      mimeType: "text/plain",
+      headers: [
+        {
+          name: "Subject",
+          value: input.subject,
+        },
+        {
+          name: "From",
+          value: input.from,
+        },
+      ],
+      body: {
+        data: encodeBase64Url(input.body),
+      },
+    },
+  };
+}
+
 test("parses reference numbers from multipart Gmail bodies when only the HTML part contains the ref", () => {
   const message: GmailMessageDetail = {
     id: "maribank-message-1",
@@ -153,4 +187,127 @@ test("maps Move It booking ids into the transaction reference when the text is p
 
   assert.equal(result.transaction.bankName, "GCash");
   assert.equal(result.transaction.referenceNumber, "A-94PHP40GWASUAV");
+});
+
+test("skips UnionBank Mailbox advisory emails that mention requests or inquiries", () => {
+  const message = createPlainTextMessage({
+    id: "unionbank-mailbox-advisory",
+    subject: "📨 Send your UnionBank account inquiry or request via Mailbox",
+    from: "UnionBank Advisory <sf.noreply@ub.unionbankph.com>",
+    snippet:
+      "Available 24/7 on UnionBank Online! To view this email as a web page, go here.",
+    body: [
+      "Available 24/7 on UnionBank Online!",
+      "To view this email as a web page, go here.",
+      "For a secure and more convenient way to reach us, use Mailbox to file transaction disputes,",
+      "send your UnionBank account inquiry or request via Mailbox, and update your account details.",
+    ].join("\n"),
+  });
+
+  const result = parseGmailPaymentEmail(message);
+
+  assert.equal(result.kind, "skipped");
+
+  if (result.kind !== "skipped") {
+    return;
+  }
+
+  assert.match(result.skippedMessage.reason, /advisory|marketing|posted transaction/i);
+});
+
+test("skips UnionBank BSP advisories even when they mention large currency thresholds", () => {
+  const message = createPlainTextMessage({
+    id: "unionbank-bsp-advisory",
+    subject: "Important Advisory: New BSP Regulation on Large-Value Cash Transactions",
+    from: "UnionBank Advisory <sf.noreply@ub.unionbankph.com>",
+    snippet:
+      "Important Advisory: New BSP Regulation on Large-Value Cash Transactions to comply with BSP Circular No. 1218.",
+    body: [
+      "Important Advisory: New BSP Regulation on Large-Value Cash Transactions",
+      "To view this email as a web page, go here.",
+      "To comply with BSP Circular No. 1218 (Series of 2025), cash transactions amounting to PHP 500,000.00",
+      "and above may require additional information and documents.",
+      "Learn more about the new regulation and updated threshold requirements.",
+    ].join("\n"),
+  });
+
+  const result = parseGmailPaymentEmail(message);
+
+  assert.equal(result.kind, "skipped");
+});
+
+test("skips UnionBank pre-qualified credit card offers with points and fee promos", () => {
+  const message = createPlainTextMessage({
+    id: "unionbank-credit-card-offer",
+    subject: "You're Pre-Qualified for a UnionBank Rewards Credit Card!",
+    from: "UnionBank of the Philippines <sf.noreply@ub.unionbankph.com>",
+    snippet:
+      "To view this email as a web page, go here. Because you're a valued UnionBank Savings Accountholder, you can apply in just a few steps.",
+    body: [
+      "To view this email as a web page, go here.",
+      "Because you're a valued UnionBank Savings Accountholder, you can apply for your UnionBank Rewards Credit Card in just a few steps.",
+      "NO DOCUMENTS REQUIRED.",
+      "Enjoy NO ANNUAL FEE FOR LIFE with FREE 10,000 points on your first transaction.",
+      "This offer is exclusively for you and cannot be shared or transferred to anyone else.",
+      "Unsubscribe",
+    ].join("\n"),
+  });
+
+  const result = parseGmailPaymentEmail(message);
+
+  assert.equal(result.kind, "skipped");
+});
+
+test("skips UnionBank automatic bills promotions that contain form values and biller counts", () => {
+  const message = createPlainTextMessage({
+    id: "unionbank-auto-bills-promo",
+    subject: "Settle bills automatically for free with UnionBank Online",
+    from: "UnionBank Advisory <sf.noreply@ub.unionbankph.com>",
+    snippet:
+      "Settle bills automatically for free with UnionBank Online. Pay as many billers as you need to, free of charge!",
+    body: [
+      "Settle bills automatically for free with UnionBank Online.",
+      "Payment Details",
+      "3500",
+      "Select Date",
+      "EVERY 30TH",
+      "Pay as many billers as you need to, free of charge!",
+      "Get access to 800+ pre-enrolled billers including utilities, telco, cards, government, and others.",
+      "No more Late Fees when you schedule automatic payments.",
+      "Learn more",
+    ].join("\n"),
+  });
+
+  const result = parseGmailPaymentEmail(message);
+
+  assert.equal(result.kind, "skipped");
+});
+
+test("still parses real posted UnionBank transfer notifications", () => {
+  const message = createPlainTextMessage({
+    id: "unionbank-transfer-posted",
+    subject: "UnionBank Online: Funds Transfer Successful",
+    from: "UnionBank Alerts <alerts@ub.unionbankph.com>",
+    snippet: "Your transfer of PHP 1,250.00 is successful.",
+    body: [
+      "Your transfer of PHP 1,250.00 is successful.",
+      "Transfer from: Savings Account - 1234",
+      "Transfer to: Maria Santos",
+      "Transfer amount: PHP 1,250.00",
+      "Reference No: FT123456789",
+    ].join("\n"),
+  });
+
+  const result = parseGmailPaymentEmail(message);
+
+  assert.equal(result.kind, "parsed");
+
+  if (result.kind !== "parsed") {
+    return;
+  }
+
+  assert.equal(result.transaction.bankName, "UnionBank");
+  assert.equal(result.transaction.direction, "transfer");
+  assert.equal(result.transaction.amount, 1250);
+  assert.equal(result.transaction.referenceNumber, "FT123456789");
 });

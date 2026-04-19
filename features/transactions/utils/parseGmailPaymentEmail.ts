@@ -201,19 +201,98 @@ function extractAmountFromMatch(
   };
 }
 
+const labeledAmountMatchers = [
+  /(?:total amount|total paid|total payment|grand total)\s*(?:is|was|:|=|-)?\s*(?:(?:PHP|USD)(?=\s*[0-9])|₱|\$|\bP(?=\s?\d))?\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)(?:\s*(PHP|USD))?/i,
+  /(?:amount(?: paid| due)?|payment amount|purchase amount|transaction amount|transfer amount|received amount|credited amount|debited amount)\s*(?:is|was|:|=|-)?\s*(?:(?:PHP|USD)(?=\s*[0-9])|₱|\$|\bP(?=\s?\d))?\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)(?:\s*(PHP|USD))?/i,
+  /(?:payment received|payment sent|you paid|you sent|money received|received|credited|debited)\s*(?:is|was|:|=|-)?\s*(?:(?:PHP|USD)(?=\s*[0-9])|₱|\$|\bP(?=\s?\d))?\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)(?:\s*(PHP|USD))?/i,
+] as const;
+
+const postedTransactionSignalPatterns = [
+  /(?:payment (?:successful|succeeded|completed|confirmed|received|posted))/i,
+  /(?:transaction (?:successful|completed|posted))/i,
+  /(?:transfer (?:successful|completed|received|sent))/i,
+  /\btransfer\b[\s\S]{0,80}\b(?:is|was)\s+(?:successful|completed|confirmed)\b/i,
+  /(?:money received)|(?:received amount)|(?:credited amount)|(?:debited amount)/i,
+  /(?:has been debited)|(?:was debited)|(?:has been credited)|(?:was credited)/i,
+  /(?:deposit (?:successful|received|completed))|(?:cash in (?:successful|received))|(?:cash out (?:successful|completed))/i,
+  /(?:you paid)|(?:you sent)|(?:paid (?:with|via|using|by))/i,
+  /(?:official receipt)|(?:purchase receipt)|(?:transaction receipt)|(?:e-?receipt)|(?:receipt number)/i,
+  /(?:order (?:has been )?paid)|(?:refund (?:successful|completed|processed|issued|received))/i,
+  /(?:total amount|total paid|total payment|grand total|payment amount|purchase amount|transaction amount|transfer amount)\b/i,
+] as const;
+
+const hardSkipAdvisoryOrPromotionalPrimaryPatterns = [
+  /important advisory/i,
+  /\bbsp regulation\b/i,
+  /large-?value cash transactions/i,
+  /pre-?qualified/i,
+  /credit card/i,
+  /\bmailbox\b/i,
+  /request via mailbox/i,
+  /account inquiry/i,
+  /settle bills automatically/i,
+  /automatic payments?/i,
+] as const;
+
+const hardSkipAdvisoryOrPromotionalSupportPatterns = [
+  /\bcircular\b/i,
+  /no annual fee/i,
+  /\bpoints\b/i,
+  /exclusive offer/i,
+  /valued account holder/i,
+  /no documents required/i,
+  /view this email as a web page/i,
+  /\bgo here\b/i,
+  /learn more/i,
+  /unsubscribe/i,
+  /free of charge/i,
+  /pre-?enrolled billers/i,
+] as const;
+
+const genericPromotionalOfferPatterns = [
+  /buy now/i,
+  /shop now/i,
+  /special offer/i,
+  /limited time/i,
+  /promo(?:tion| code)?/i,
+  /apply (?:now|today|in just a few steps)/i,
+  /fee for life/i,
+] as const;
+
+const genericPromotionalSupportPatterns = [
+  /sale price/i,
+  /regular price/i,
+  /save (?:on|up to)/i,
+  /view in browser/i,
+  /explore\b/i,
+  /first transaction/i,
+] as const;
+
+const disallowedMerchantCandidatePatterns = [
+  /view this email/i,
+  /web page/i,
+  /\bgo here\b/i,
+  /learn more/i,
+  /unsubscribe/i,
+  /important advisory/i,
+  /pre-?qualified/i,
+  /valued account holder/i,
+  /\bmailbox\b/i,
+  /automatic payments?/i,
+  /free of charge/i,
+] as const;
+
 function parseCurrencyAndAmount(content: string) {
   const inferredCurrencyCode = inferCurrencyCode(content);
-  const labeledAmountMatchers = [
-    /(?:total amount|total paid|total payment|grand total)\s*(?:is|was|:|=|-)?\s*(?:(?:PHP|USD)(?=\s*[0-9])|₱|\$|\bP(?=\s?\d))?\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)(?:\s*(PHP|USD))?/i,
-    /(?:amount(?: paid| due)?|payment amount|purchase amount|transaction amount|transfer amount|received amount|credited amount|debited amount)\s*(?:is|was|:|=|-)?\s*(?:(?:PHP|USD)(?=\s*[0-9])|₱|\$|\bP(?=\s?\d))?\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)(?:\s*(PHP|USD))?/i,
-    /(?:payment received|payment sent|you paid|you sent|money received|received|credited|debited)\s*(?:is|was|:|=|-)?\s*(?:(?:PHP|USD)(?=\s*[0-9])|₱|\$|\bP(?=\s?\d))?\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)(?:\s*(PHP|USD))?/i,
-  ];
-
   for (const pattern of labeledAmountMatchers) {
     const parsedAmount = extractAmountFromMatch(content.match(pattern), inferredCurrencyCode);
     if (parsedAmount) {
       return parsedAmount;
     }
+  }
+
+  if (!hasPostedTransactionSignal(content) || hasNonTransactionAmountContext(content)) {
+    return null;
   }
 
   const explicitCurrencyMatchers = [
@@ -252,8 +331,12 @@ function parseCurrencyAndAmount(content: string) {
   return null;
 }
 
-function countPatternMatches(content: string, patterns: RegExp[]) {
+function countPatternMatches(content: string, patterns: readonly RegExp[]) {
   return patterns.reduce((count, pattern) => count + (pattern.test(content) ? 1 : 0), 0);
+}
+
+function hasAnyPatternMatch(content: string, patterns: readonly RegExp[]) {
+  return patterns.some((pattern) => pattern.test(content));
 }
 
 function hasCompletedRefundSignal(content: string) {
@@ -263,7 +346,11 @@ function hasCompletedRefundSignal(content: string) {
 }
 
 function hasPostedTransactionSignal(content: string) {
-  return /(?:payment (?:successful|succeeded|completed|confirmed|received|posted))|(?:transaction (?:successful|completed|posted))|(?:transfer (?:successful|completed|received|sent))|(?:you paid)|(?:you sent)|(?:money received)|(?:amount (?:paid|received))|(?:credited amount)|(?:debited amount)|(?:charged (?:to|on))|(?:has been debited)|(?:was debited)|(?:has been credited)|(?:was credited)|(?:deposit (?:successful|received|completed))|(?:cash in (?:successful|received))|(?:cash out (?:successful|completed))|(?:paid (?:with|via|using))|(?:official receipt)|(?:purchase receipt)|(?:transaction receipt)|(?:receipt number)|(?:order (?:has been )?paid)|(?:refund (?:successful|completed|processed|issued|received))/i.test(
+  return postedTransactionSignalPatterns.some((pattern) => pattern.test(content));
+}
+
+function hasNonTransactionAmountContext(content: string) {
+  return /(?:bsp regulation|circular|large-?value cash transactions|threshold|spend required|minimum spend|required spend|no annual fee|fee for life|valued account holder|credit card|pre-?qualified|points|billers?|pre-?enrolled|every\s+[0-9]{1,2}(?:st|nd|rd|th)|automatic payments?|settle bills automatically|mailbox)/i.test(
     content
   );
 }
@@ -346,22 +433,36 @@ function isOrderLifecycleNotice(content: string) {
 }
 
 function isPromotionalEmail(content: string) {
-  const promoSignals = [
-    /buy now/i,
-    /shop now/i,
-    /sale price/i,
-    /regular price/i,
-    /save (?:on|up to)/i,
-    /special offer/i,
-    /limited time/i,
-    /view in browser/i,
-    /unsubscribe/i,
-    /promo(?:tion| code)?/i,
-    /learn more/i,
-    /explore\b/i,
-  ];
+  if (hasPostedTransactionSignal(content)) {
+    return false;
+  }
 
-  return countPatternMatches(content, promoSignals) >= 2 && !hasPostedTransactionSignal(content);
+  const offerSignalCount = countPatternMatches(content, genericPromotionalOfferPatterns);
+  const supportSignalCount = countPatternMatches(content, genericPromotionalSupportPatterns);
+
+  return offerSignalCount >= 2 || (offerSignalCount >= 1 && supportSignalCount >= 1);
+}
+
+function isAdvisoryOrPromotionalBankEmail(content: string) {
+  if (hasPostedTransactionSignal(content)) {
+    return false;
+  }
+
+  const primarySignalCount = countPatternMatches(
+    content,
+    hardSkipAdvisoryOrPromotionalPrimaryPatterns
+  );
+  const supportSignalCount = countPatternMatches(
+    content,
+    hardSkipAdvisoryOrPromotionalSupportPatterns
+  );
+
+  return (
+    primarySignalCount >= 2 ||
+    (primarySignalCount >= 1 && supportSignalCount >= 1) ||
+    (hasAnyPatternMatch(content, [/important advisory/i, /pre-?qualified/i]) &&
+      hasAnyPatternMatch(content, [/learn more/i, /unsubscribe/i, /\bgo here\b/i]))
+  );
 }
 
 function parseBankName(content: string, from: string) {
@@ -390,23 +491,41 @@ function parseSenderLabel(from: string) {
   return null;
 }
 
+function sanitizeMerchantCandidate(value: string | null | undefined) {
+  const normalized = value?.replace(/[ \t]+/g, " ").trim();
+  if (!normalized) {
+    return null;
+  }
+
+  if (disallowedMerchantCandidatePatterns.some((pattern) => pattern.test(normalized))) {
+    return null;
+  }
+
+  return normalized.slice(0, 160);
+}
+
 function parseMerchant(content: string, from: string) {
   const labeledMatch = content.match(/(?:merchant|biller|payee|recipient|store)\s*[:#-]?\s*([^\n\r]+)/i);
-  if (labeledMatch?.[1]) {
-    return labeledMatch[1].trim().slice(0, 160);
+  const labeledMerchant = sanitizeMerchantCandidate(labeledMatch?.[1]);
+  if (labeledMerchant) {
+    return labeledMerchant;
   }
 
   const receivedFromMatch = content.match(/(?:from)\s+([A-Za-z0-9&.,' -]{3,80})/i);
   if (receivedFromMatch?.[1] && !/no reply|noreply|support/i.test(receivedFromMatch[1])) {
-    return receivedFromMatch[1].trim().slice(0, 160);
+    const receivedFromMerchant = sanitizeMerchantCandidate(receivedFromMatch[1]);
+    if (receivedFromMerchant) {
+      return receivedFromMerchant;
+    }
   }
 
   const toMatch = content.match(/(?:to|at)\s+([A-Za-z0-9&.,' -]{3,80})/i);
-  if (toMatch?.[1]) {
-    return toMatch[1].trim().slice(0, 160);
+  const toMerchant = sanitizeMerchantCandidate(toMatch?.[1]);
+  if (toMerchant) {
+    return toMerchant;
   }
 
-  return parseSenderLabel(from)?.slice(0, 160) ?? "Payment Notification";
+  return sanitizeMerchantCandidate(parseSenderLabel(from)) ?? "Payment Notification";
 }
 
 function createSkippedResult(
@@ -463,6 +582,15 @@ export function parseGmailPaymentEmail(message: GmailMessageDetail): GmailPaymen
     );
   }
 
+  if (isAdvisoryOrPromotionalBankEmail(combined)) {
+    return createSkippedResult(
+      message,
+      subject,
+      from,
+      "Message looked like a bank advisory, product offer, or marketing email instead of a posted transaction."
+    );
+  }
+
   if (isCancelledOrderOrPaymentNotice(combined)) {
     return createSkippedResult(
       message,
@@ -478,6 +606,15 @@ export function parseGmailPaymentEmail(message: GmailMessageDetail): GmailPaymen
       subject,
       from,
       "Message was an order or delivery status update without proof of a completed payment."
+    );
+  }
+
+  if (!hasPostedTransactionSignal(combined)) {
+    return createSkippedResult(
+      message,
+      subject,
+      from,
+      "Message did not contain proof of a posted transaction."
     );
   }
 
