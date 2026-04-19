@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import { Plus, ArrowLeft, Building2 } from "lucide-react";
 import { z } from "zod";
 import { motion, AnimatePresence } from "framer-motion";
+import Image from "next/image";
 
 import { SUPPORTED_INSTITUTIONS, Institution } from "@/features/accounts/constants/institutions";
 import {
@@ -181,10 +182,18 @@ export function AddAccountFlow({ onSubmit }: AddAccountFlowProps) {
                       <div className={cn("absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-10 bg-gradient-to-br", inst.gradient)} />
 
                       <div className={cn(
-                        "flex h-12 w-12 items-center justify-center rounded-full shadow-lg bg-gradient-to-br transition-transform duration-300 group-hover:scale-110",
-                        inst.gradient
+                        "flex h-14 w-20 items-center justify-center rounded-xl shadow-lg transition-transform duration-300 group-hover:scale-110",
+                        inst.logo ? "bg-white border border-border" : cn("bg-gradient-to-br", inst.gradient)
                       )}>
-                        {inst.type === 'other' ? (
+                        {inst.logo ? (
+                          <Image
+                            src={inst.logo}
+                            alt={inst.name}
+                            width={80}
+                            height={56}
+                            className="h-full w-full object-contain p-2"
+                          />
+                        ) : inst.type === 'other' ? (
                           <Building2 className="h-6 w-6 text-white" />
                         ) : (
                           <span className="font-bold text-white tracking-tight">{inst.logoText}</span>
