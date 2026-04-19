@@ -33,6 +33,7 @@ import { cn } from "@/lib/utils";
 
 type AccountModalProps = {
   account?: FinancialAccount;
+  initialValues?: Partial<CreateFinancialAccountFormInput>;
   onSubmit: (input: CreateFinancialAccountInput) => Promise<void>;
 };
 
@@ -55,9 +56,9 @@ const initialFormState: CreateFinancialAccountFormInput = {
   notes: "",
 };
 
-function toFormState(account?: FinancialAccount): CreateFinancialAccountFormInput {
+function toFormState(account?: FinancialAccount, initialValues?: Partial<CreateFinancialAccountFormInput>): CreateFinancialAccountFormInput {
   if (!account) {
-    return initialFormState;
+    return { ...initialFormState, ...initialValues };
   }
 
   return {
@@ -75,12 +76,12 @@ function toFormState(account?: FinancialAccount): CreateFinancialAccountFormInpu
   };
 }
 
-export function AccountModal({ account, onSubmit }: AccountModalProps) {
+export function AccountModal({ account, initialValues, onSubmit }: AccountModalProps) {
   const [open, setOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const [formState, setFormState] = useState<CreateFinancialAccountFormInput>(toFormState(account));
+  const [formState, setFormState] = useState<CreateFinancialAccountFormInput>(toFormState(account, initialValues));
   const isEditMode = Boolean(account);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -126,7 +127,7 @@ export function AccountModal({ account, onSubmit }: AccountModalProps) {
       onOpenChange={(nextOpen) => {
         setOpen(nextOpen);
         if (nextOpen) {
-          setFormState(toFormState(account));
+          setFormState(toFormState(account, initialValues));
           setError(null);
           setFieldErrors({});
         }

@@ -8,6 +8,7 @@ import { QuickAddTransactionModal } from "@/features/transactions/components/Qui
 import { TransactionEditDialog } from "@/features/transactions/components/TransactionEditDialog";
 import { TransactionFiltersToolbar } from "@/features/transactions/components/TransactionFiltersToolbar";
 import { TransactionTable } from "@/features/transactions/components/TransactionTable";
+import { CSVImportFlow } from "@/features/transactions/components/CSVImportFlow";
 import { GmailSyncSummaryPanel } from "@/features/transactions/components/GmailSyncSummaryPanel";
 import { GmailConnectionCard } from "@/features/gmail/components/GmailConnectionCard";
 import { useGmailConnection } from "@/features/gmail/hooks/useGmailConnection";
@@ -37,6 +38,7 @@ export function TransactionsView() {
     createTransaction,
     updateTransaction,
     syncGmailTransactions,
+    importCSVTransactions,
   } = useTransactions();
   const gmailMessage =
     searchParams.get("gmail_error") === "connection_failed"
@@ -56,7 +58,10 @@ export function TransactionsView() {
         title="Automated receipts plus quick manual ledger entries"
         description="Capture payment emails, extract reference numbers, and keep every transaction categorized and traceable."
         action={
-          <QuickAddTransactionModal onSubmit={createTransaction} />
+          <div className="flex items-center gap-2">
+            <CSVImportFlow onImport={importCSVTransactions} />
+            <QuickAddTransactionModal onSubmit={createTransaction} />
+          </div>
         }
       />
 

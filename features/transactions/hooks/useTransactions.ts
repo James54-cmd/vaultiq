@@ -1,6 +1,7 @@
 "use client";
 
 import { useDeferredValue, useEffect, useRef, useState, useTransition } from "react";
+import type { CSVRow } from "@/features/transactions/components/CSVImportFlow";
 
 import { createManualTransactionFormSchema } from "@/features/transactions/schemas/transaction.schema";
 import {
@@ -66,9 +67,9 @@ export function useTransactions() {
       current.page === 1
         ? current
         : {
-            ...current,
-            page: 1,
-          }
+          ...current,
+          page: 1,
+        }
     ));
   };
 
@@ -122,6 +123,41 @@ export function useTransactions() {
     return syncPromise;
   };
 
+  const importCSVTransactions = async (rows: CSVRow[]) => {
+    // We execute them in batches or sequentially to avoid overwhelming the server,
+    // but Promise.all is okay for small CSV files. We will process 5 at a time.
+    const batchSize = 5;
+    for (let i = 0; i < rows.length; i += batchSize) {
+      const batch = rows.slice(i, i + batchSize);
+      await Promise.all(
+        batch.map((row) => {
+          const input: CreateManualTransactionInput = {
+            source: "manual",
+            currencyCode: "PHP",
+            direction: row.Direction,
+            amount: parseFloat(row.Amount.replace(/,/g, "")),
+            bankName: (row.BankName || "UnionBank") as any,
+            merchant: row.Description,
+            description: row.Description,
+            category: (row.Category?.toLowerCase() || "uncategorized") as any,
+            referenceNumber: row.ReferenceNumber || undefined,
+            happenedAt: row.Date,
+            status: "completed",
+            notes: "Imported via CSV",
+          };
+          const payload = createManualTransactionFormSchema.safeParse(input);
+          const parsedPayload = payload.success ? payload.data : input;
+          return createManualTransactionRequest(parsedPayload);
+        })
+      );
+    }
+
+    loadTransactions({
+      ...query,
+      search: deferredSearch.trim().length > 0 ? deferredSearch.trim() : undefined,
+    });
+  };
+
   return {
     transactions,
     summary,
@@ -136,5 +172,6 @@ export function useTransactions() {
     createTransaction,
     updateTransaction,
     syncGmailTransactions,
+    importCSVTransactions,
   };
 }

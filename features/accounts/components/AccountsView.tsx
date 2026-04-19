@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AccountModal } from "@/features/accounts/components/AccountModal";
+import { AddAccountFlow } from "@/features/accounts/components/AddAccountFlow";
 import {
   financialAccountKindLabels,
   financialAccountStatusLabels,
@@ -52,7 +53,7 @@ export function AccountsView() {
         eyebrow="Accounts"
         title="Build a clean asset and debt ledger"
         description="Manual and synced-style account records feed a single net-worth summary without forcing every account into the same mold."
-        action={<AccountModal onSubmit={createAccount} />}
+        action={<AddAccountFlow onSubmit={createAccount} />}
       />
 
       {summary ? (
