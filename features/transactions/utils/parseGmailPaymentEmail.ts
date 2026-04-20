@@ -417,8 +417,19 @@ function looksLikeTransactionNotification(content: string) {
   ) || (/\border\b/i.test(content) && hasPostedTransactionSignal(content));
 }
 
+function hasUnsuccessfulPaymentSignal(content: string) {
+  return /(?:unsuccessful\s+(?:\w+\s+)*?payment)|(?:payment\s+(?:\w+\s+)*?unsuccessful)|(?:failed\s+(?:\w+\s+)*?payment)|(?:payment\s+(?:\w+\s+)*?failed)/i.test(
+    content
+  );
+}
+
 function isNonPostedPaymentNotice(content: string) {
-  return /(?:payment (?:was )?declined|payment declined|declined\.)|(?:payment (?:was )?failed|payment failed)|(?:amount due)|(?:update your payment method)|(?:use a different one)|(?:we'll try to process the payment again)|(?:retry payment)|(?:past due)|(?:subscription (?:payment )?failed)|(?:could not process your payment)|(?:unable to process payment)|(?:payment unsuccessful)|(?:unsuccessful payment)|(?:failed to charge)|(?:charge failed)/i.test(
+  // Unsuccessful / failed payments are handled separately — they get flagged, not skipped.
+  if (hasUnsuccessfulPaymentSignal(content)) {
+    return false;
+  }
+
+  return /(?:payment (?:was )?declined|payment declined|declined\.)|(?:payment (?:was )?failed|payment failed)|(?:amount due)|(?:update your payment method)|(?:use a different one)|(?:we'll try to process the payment again)|(?:retry payment)|(?:past due)|(?:subscription (?:payment )?failed)|(?:could not process your payment)|(?:unable to process payment)|(?:failed to charge)|(?:charge failed)/i.test(
     content
   );
 }
@@ -661,7 +672,11 @@ export function parseGmailPaymentEmail(message: GmailMessageDetail): GmailPaymen
     description,
     category,
     referenceNumber: extractReferenceNumber(combined),
-    status: /pending/i.test(combined) ? ("pending" as const) : ("completed" as const),
+    status: hasUnsuccessfulPaymentSignal(combined)
+      ? ("flagged" as const)
+      : /pending/i.test(combined)
+        ? ("pending" as const)
+        : ("completed" as const),
     happenedAt: message.internalDate
       ? new Date(Number(message.internalDate)).toISOString()
       : new Date().toISOString(),
