@@ -18,6 +18,31 @@ export type TransactionRecord = {
   gmail_thread_id: string | null;
 };
 
+export type GmailTransactionReviewStatus = "pending" | "confirmed" | "declined";
+
+export type GmailTransactionReviewRecord = {
+  id: string;
+  review_batch_id: string;
+  user_id: string;
+  gmail_message_id: string;
+  gmail_thread_id: string | null;
+  direction: "income" | "expense" | "transfer";
+  amount: number;
+  currency_code: string;
+  bank_name: string;
+  merchant: string;
+  description: string;
+  category: string;
+  reference_number: string | null;
+  status: "completed" | "pending" | "flagged";
+  review_status: GmailTransactionReviewStatus;
+  happened_at: string;
+  raw_payload: Record<string, unknown>;
+  transaction_id: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type CreateManualTransactionRpcParams = {
   p_direction: string;
   p_amount: number;

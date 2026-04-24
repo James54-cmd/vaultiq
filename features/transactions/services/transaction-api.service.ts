@@ -3,6 +3,8 @@ import type {
   CreateManualTransactionInput,
   GmailSyncInput,
   GmailSyncResult,
+  GmailSyncReviewCommitInput,
+  GmailSyncReviewCommitResult,
   TransactionListResponse,
   TransactionOverview,
   TransactionOverviewQuery,
@@ -22,6 +24,8 @@ function buildQueryString(query?: TransactionQuery) {
   if (query.category) searchParams.set("category", query.category);
   if (query.direction) searchParams.set("direction", query.direction);
   if (query.status) searchParams.set("status", query.status);
+  if (query.dateFrom) searchParams.set("dateFrom", query.dateFrom);
+  if (query.dateTo) searchParams.set("dateTo", query.dateTo);
   if (query.search) searchParams.set("search", query.search);
   if (query.page) searchParams.set("page", String(query.page));
   if (query.pageSize) searchParams.set("pageSize", String(query.pageSize));
@@ -157,5 +161,23 @@ export async function syncGmailTransactionsRequest(input?: GmailSyncInput) {
   }
 
   const payload = await response.json() as ApiSuccessResponse<GmailSyncResult>;
+  return payload.data;
+}
+
+export async function commitGmailTransactionReviewRequest(input: GmailSyncReviewCommitInput) {
+  const response = await fetch("/api/transactions/gmail-sync/review", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(input),
+  });
+
+  if (!response.ok) {
+    const error = (await response.json()) as ApiErrorResponse;
+    throw new ApiValidationError(extractApiErrorMessage(error), extractApiValidationDetails(error));
+  }
+
+  const payload = await response.json() as ApiSuccessResponse<GmailSyncReviewCommitResult>;
   return payload.data;
 }

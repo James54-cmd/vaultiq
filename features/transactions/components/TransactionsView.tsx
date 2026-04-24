@@ -9,8 +9,11 @@ import { TransactionEditDialog } from "@/features/transactions/components/Transa
 import { TransactionFiltersToolbar } from "@/features/transactions/components/TransactionFiltersToolbar";
 import { TransactionTable } from "@/features/transactions/components/TransactionTable";
 import { CSVImportFlow } from "@/features/transactions/components/CSVImportFlow";
-import { GmailSyncSummaryPanel } from "@/features/transactions/components/GmailSyncSummaryPanel";
-import { GmailConnectionCard } from "@/features/gmail/components/GmailConnectionCard";
+import { GmailSyncReviewFlow } from "@/features/transactions/components/GmailSyncReviewFlow";
+import {
+  GmailConnectionCard,
+  GmailConnectionCardSkeleton,
+} from "@/features/gmail/components/GmailConnectionCard";
 import { useGmailConnection } from "@/features/gmail/hooks/useGmailConnection";
 import { useTransactions } from "@/features/transactions/hooks/useTransactions";
 import type { GmailSyncResult, Transaction } from "@/features/transactions/types/Transaction";
@@ -31,6 +34,7 @@ export function TransactionsView() {
     error,
     isPending,
     isSyncingGmail,
+    isCommittingGmailReview,
     search,
     setSearch,
     query,
@@ -38,6 +42,7 @@ export function TransactionsView() {
     createTransaction,
     updateTransaction,
     syncGmailTransactions,
+    commitGmailTransactionReview,
     importCSVTransactions,
   } = useTransactions();
   const gmailMessage =
@@ -86,7 +91,9 @@ export function TransactionsView() {
         </div>
       </div>
 
-      {gmailSyncEnabled ? (
+      {gmailSyncEnabled && gmailPending ? (
+        <GmailConnectionCardSkeleton />
+      ) : gmailSyncEnabled ? (
         <GmailConnectionCard
           status={gmailStatus}
           isPending={gmailPending}
@@ -117,7 +124,17 @@ export function TransactionsView() {
         </div>
       )}
 
-      {gmailSyncResult ? <GmailSyncSummaryPanel result={gmailSyncResult} /> : null}
+      <GmailSyncReviewFlow
+        result={gmailSyncResult}
+        isPending={isCommittingGmailReview}
+        onResultChange={setGmailSyncResult}
+        onCommitReview={(reviewBatchId, selectedReviewItemIds) =>
+          commitGmailTransactionReview({
+            reviewBatchId,
+            selectedReviewItemIds,
+          })
+        }
+      />
 
       <TransactionTable
         title="Transaction Ledger"

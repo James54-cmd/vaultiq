@@ -10,9 +10,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useFinancialAccounts } from "@/features/accounts/hooks/useFinancialAccounts";
-import { GmailConnectionCard } from "@/features/gmail/components/GmailConnectionCard";
+import {
+  GmailConnectionCard,
+  GmailConnectionCardSkeleton,
+} from "@/features/gmail/components/GmailConnectionCard";
 import { useGmailConnection } from "@/features/gmail/hooks/useGmailConnection";
-import { GmailSyncSummaryPanel } from "@/features/transactions/components/GmailSyncSummaryPanel";
+import { GmailSyncReviewFlow } from "@/features/transactions/components/GmailSyncReviewFlow";
 import { QuickAddTransactionModal } from "@/features/transactions/components/QuickAddTransactionModal";
 import { TransactionTable } from "@/features/transactions/components/TransactionTable";
 import { useTransactionOverview } from "@/features/transactions/hooks/useTransactionOverview";
@@ -77,7 +80,13 @@ export function TransactionDashboard() {
   const { status: gmailStatus, error: gmailError, isPending: gmailPending, reloadConnection } =
     useGmailConnection(gmailSyncEnabled);
   const { overview, period, setPeriod, error, isPending, reloadOverview } = useTransactionOverview();
-  const { createTransaction, syncGmailTransactions, isSyncingGmail } = useTransactions();
+  const {
+    createTransaction,
+    syncGmailTransactions,
+    commitGmailTransactionReview,
+    isSyncingGmail,
+    isCommittingGmailReview,
+  } = useTransactions();
   const { summary: netWorthSummary, isPending: isAccountsPending } = useFinancialAccounts();
   const periodLabel = formatOverviewPeriodLabel(period);
   const summaryCards = [
@@ -123,7 +132,9 @@ export function TransactionDashboard() {
         }
       />
 
-      {gmailSyncEnabled ? (
+      {gmailSyncEnabled && gmailPending ? (
+        <GmailConnectionCardSkeleton />
+      ) : gmailSyncEnabled ? (
         <GmailConnectionCard
           status={gmailStatus}
           isPending={gmailPending}
@@ -149,7 +160,18 @@ export function TransactionDashboard() {
         />
       ) : null}
 
-      {gmailSyncResult ? <GmailSyncSummaryPanel result={gmailSyncResult} /> : null}
+      <GmailSyncReviewFlow
+        result={gmailSyncResult}
+        isPending={isCommittingGmailReview}
+        onResultChange={setGmailSyncResult}
+        onCommitReview={(reviewBatchId, selectedReviewItemIds) =>
+          commitGmailTransactionReview({
+            reviewBatchId,
+            selectedReviewItemIds,
+          })
+        }
+        onAfterCommit={reloadOverview}
+      />
 
       <Card className="overflow-hidden border-secondary/20 bg-surface-raised">
         <CardContent className="grid gap-4 px-6 py-6 lg:grid-cols-[1.1fr_0.9fr]">

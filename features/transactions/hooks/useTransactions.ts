@@ -5,6 +5,7 @@ import type { CSVRow } from "@/features/transactions/components/CSVImportFlow";
 
 import { createManualTransactionFormSchema } from "@/features/transactions/schemas/transaction.schema";
 import {
+  commitGmailTransactionReviewRequest,
   createManualTransactionRequest,
   fetchTransactions,
   syncGmailTransactionsRequest,
@@ -15,6 +16,7 @@ import type {
   CreateManualTransactionFormInput,
   GmailSyncInput,
   GmailSyncResult,
+  GmailSyncReviewCommitInput,
   Transaction,
   TransactionListPagination,
   TransactionListSummary,
@@ -34,6 +36,7 @@ export function useTransactions() {
   const deferredSearch = useDeferredValue(searchDraft);
   const [error, setError] = useState<string | null>(null);
   const [isSyncingGmail, setIsSyncingGmail] = useState(false);
+  const [isCommittingGmailReview, setIsCommittingGmailReview] = useState(false);
   const [isPending, startTransition] = useTransition();
   const activeGmailSyncRef = useRef<Promise<GmailSyncResult> | null>(null);
 
@@ -123,6 +126,21 @@ export function useTransactions() {
     return syncPromise;
   };
 
+  const commitGmailTransactionReview = async (input: GmailSyncReviewCommitInput) => {
+    setIsCommittingGmailReview(true);
+
+    try {
+      const result = await commitGmailTransactionReviewRequest(input);
+      loadTransactions({
+        ...query,
+        search: deferredSearch.trim().length > 0 ? deferredSearch.trim() : undefined,
+      });
+      return result;
+    } finally {
+      setIsCommittingGmailReview(false);
+    }
+  };
+
   const importCSVTransactions = async (rows: CSVRow[]) => {
     // We execute them in batches or sequentially to avoid overwhelming the server,
     // but Promise.all is okay for small CSV files. We will process 5 at a time.
@@ -165,6 +183,7 @@ export function useTransactions() {
     error,
     isPending,
     isSyncingGmail,
+    isCommittingGmailReview,
     search: searchDraft,
     setSearch,
     query,
@@ -172,6 +191,7 @@ export function useTransactions() {
     createTransaction,
     updateTransaction,
     syncGmailTransactions,
+    commitGmailTransactionReview,
     importCSVTransactions,
   };
 }

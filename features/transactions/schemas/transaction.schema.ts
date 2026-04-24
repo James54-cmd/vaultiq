@@ -204,9 +204,19 @@ export const transactionQuerySchema = z.object({
   category: transactionCategorySchema.optional(),
   direction: transactionDirectionSchema.optional(),
   status: transactionStatusSchema.optional(),
+  dateFrom: dateStringSchema.optional(),
+  dateTo: dateStringSchema.optional(),
   search: z.string().trim().min(1).optional(),
   page: z.coerce.number().int().min(1).optional().default(1),
   pageSize: z.coerce.number().int().min(5).max(50).optional().default(20),
+}).superRefine((value, ctx) => {
+  if (value.dateFrom && value.dateTo && value.dateFrom > value.dateTo) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Start date must be before or equal to end date.",
+      path: ["dateFrom"],
+    });
+  }
 });
 
 export const transactionOverviewQuerySchema = z.object({
@@ -219,4 +229,9 @@ export const gmailSyncSchema = z.object({
   maxPages: z.number().int().min(1).max(20).optional(),
   daysBack: z.number().int().min(1).max(730).optional(),
   reprocessExisting: z.boolean().optional(),
+});
+
+export const gmailSyncReviewCommitSchema = z.object({
+  reviewBatchId: z.string().uuid(),
+  selectedReviewItemIds: z.array(z.string().uuid()).default([]),
 });

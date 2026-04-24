@@ -1,10 +1,12 @@
 import "server-only";
 
+import { randomUUID } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { startOfDay, startOfMonth, startOfYear } from "date-fns";
 
 import {
   createManualTransactionSchema,
+  gmailSyncReviewCommitSchema,
   transactionIdSchema,
   transactionOverviewQuerySchema,
   transactionQuerySchema,
@@ -13,6 +15,7 @@ import {
 import { listBudgets } from "@/features/budgets/services/budget.service";
 import type {
   GmailSyncResult,
+  GmailSyncReviewCommitResult,
   ParsedGmailTransaction,
   TransactionListResponse,
   TransactionOverview,
@@ -20,10 +23,12 @@ import type {
 } from "@/features/transactions/types/Transaction";
 import type {
   CreateManualTransactionRpcParams,
+  GmailTransactionReviewRecord,
   IngestGmailTransactionRpcParams,
   TransactionRecord,
 } from "@/features/transactions/types/TransactionRecord";
 import { mapTransactionRecord } from "@/features/transactions/utils/mapTransactionRecord";
+import { mapGmailTransactionReviewRecord } from "@/features/transactions/utils/mapGmailTransactionReviewRecord";
 import { formatTransactionLabel } from "@/features/transactions/utils/formatTransactionLabel";
 import { fetchParsedGmailTransactions } from "@/features/transactions/services/gmail-sync.service";
 
@@ -193,12 +198,25 @@ export async function syncGmailTransactions(
   input?: unknown
 ): Promise<GmailSyncResult> {
   const parsedTransactionsResult = await fetchParsedGmailTransactions(supabase, userId, input);
-  const createdTransactions = await ingestGmailTransactionsInBatches(
+  const existingTransactionMessageIds = await getExistingTransactionMessageIds(
     supabase,
-    parsedTransactionsResult.parsedTransactions
+    parsedTransactionsResult.parsedTransactions.map((transaction) => transaction.gmailMessageId)
   );
-  const updatedCount = parsedTransactionsResult.parsedExistingMessageCount;
-  const insertedCount = Math.max(0, createdTransactions.length - updatedCount);
+  const existingParsedTransactions = parsedTransactionsResult.parsedTransactions.filter((transaction) =>
+    existingTransactionMessageIds.has(transaction.gmailMessageId)
+  );
+  const newParsedTransactions = parsedTransactionsResult.parsedTransactions.filter((transaction) =>
+    !existingTransactionMessageIds.has(transaction.gmailMessageId)
+  );
+  const updatedTransactions = await ingestGmailTransactionsInBatches(
+    supabase,
+    existingParsedTransactions
+  );
+  const queuedReview = await queueGmailTransactionReviewItems(
+    supabase,
+    userId,
+    newParsedTransactions
+  );
 
   return {
     query: parsedTransactionsResult.query,
@@ -207,11 +225,70 @@ export async function syncGmailTransactions(
     matchedMessageCount: parsedTransactionsResult.matchedMessageCount,
     existingMessageCount: parsedTransactionsResult.existingMessageCount,
     parsedMessageCount: parsedTransactionsResult.parsedTransactions.length,
-    insertedCount,
-    updatedCount,
+    insertedCount: 0,
+    updatedCount: updatedTransactions.length,
+    reviewBatchId: queuedReview.reviewBatchId,
+    reviewItemCount: queuedReview.reviewItems.length,
+    declinedReviewItemCount: queuedReview.declinedReviewItemCount,
+    reviewItems: queuedReview.reviewItems,
     skippedMessageCount: parsedTransactionsResult.skippedMessages.length,
     skippedMessages: parsedTransactionsResult.skippedMessages.slice(0, 5),
-    transactions: createdTransactions,
+    transactions: updatedTransactions,
+  };
+}
+
+export async function commitGmailTransactionReview(
+  supabase: SupabaseClient,
+  userId: string,
+  input: unknown
+): Promise<GmailSyncReviewCommitResult> {
+  const parsedInput = gmailSyncReviewCommitSchema.parse(input);
+  const { data, error } = await supabase
+    .from("gmail_transaction_review_items")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("review_batch_id", parsedInput.reviewBatchId)
+    .eq("review_status", "pending");
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  const reviewRecords = (data ?? []) as GmailTransactionReviewRecord[];
+  const selectedIds = new Set(parsedInput.selectedReviewItemIds);
+  const missingSelectedIds = parsedInput.selectedReviewItemIds.filter(
+    (id) => !reviewRecords.some((record) => record.id === id)
+  );
+
+  if (missingSelectedIds.length > 0) {
+    throw new Error("One or more review items are no longer available.");
+  }
+
+  const confirmedRecords = reviewRecords.filter((record) => selectedIds.has(record.id));
+  const declinedRecords = reviewRecords.filter((record) => !selectedIds.has(record.id));
+  const transactions = await ingestGmailTransactionsInBatches(
+    supabase,
+    confirmedRecords.map(mapReviewRecordToParsedTransaction)
+  );
+
+  await markReviewItemsConfirmed(
+    supabase,
+    confirmedRecords,
+    transactions.map((transaction) => ({
+      id: transaction.id,
+      gmailMessageId: transaction.gmailMessageId,
+    }))
+  );
+  await markReviewItemsDeclined(
+    supabase,
+    declinedRecords.map((record) => record.id)
+  );
+
+  return {
+    reviewBatchId: parsedInput.reviewBatchId,
+    confirmedCount: confirmedRecords.length,
+    declinedCount: declinedRecords.length,
+    transactions,
   };
 }
 
@@ -366,6 +443,135 @@ function shouldIncludeTransactionInFinancialRollups(
   return transaction.status !== "pending";
 }
 
+async function getExistingTransactionMessageIds(
+  supabase: SupabaseClient,
+  gmailMessageIds: string[]
+) {
+  const uniqueMessageIds = Array.from(new Set(gmailMessageIds));
+  const existingMessageIds = new Set<string>();
+
+  for (let index = 0; index < uniqueMessageIds.length; index += gmailSyncInsertBatchSize) {
+    const batch = uniqueMessageIds.slice(index, index + gmailSyncInsertBatchSize);
+
+    if (batch.length === 0) {
+      continue;
+    }
+
+    const { data, error } = await supabase
+      .from("transactions")
+      .select("gmail_message_id")
+      .in("gmail_message_id", batch);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    (data ?? []).forEach((row) => {
+      if (typeof row.gmail_message_id === "string" && row.gmail_message_id.length > 0) {
+        existingMessageIds.add(row.gmail_message_id);
+      }
+    });
+  }
+
+  return existingMessageIds;
+}
+
+async function getExistingReviewRecords(
+  supabase: SupabaseClient,
+  userId: string,
+  gmailMessageIds: string[]
+) {
+  const uniqueMessageIds = Array.from(new Set(gmailMessageIds));
+  const reviewRecords = new Map<string, GmailTransactionReviewRecord>();
+
+  for (let index = 0; index < uniqueMessageIds.length; index += gmailSyncInsertBatchSize) {
+    const batch = uniqueMessageIds.slice(index, index + gmailSyncInsertBatchSize);
+
+    if (batch.length === 0) {
+      continue;
+    }
+
+    const { data, error } = await supabase
+      .from("gmail_transaction_review_items")
+      .select("*")
+      .eq("user_id", userId)
+      .in("gmail_message_id", batch);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    ((data ?? []) as GmailTransactionReviewRecord[]).forEach((record) => {
+      reviewRecords.set(record.gmail_message_id, record);
+    });
+  }
+
+  return reviewRecords;
+}
+
+async function queueGmailTransactionReviewItems(
+  supabase: SupabaseClient,
+  userId: string,
+  transactions: ParsedGmailTransaction[]
+) {
+  const reviewBatchId = transactions.length > 0 ? randomUUID() : null;
+  const existingReviewRecords = await getExistingReviewRecords(
+    supabase,
+    userId,
+    transactions.map((transaction) => transaction.gmailMessageId)
+  );
+  const pendingTransactions = transactions.filter((transaction) => {
+    const existingReviewRecord = existingReviewRecords.get(transaction.gmailMessageId);
+    return !existingReviewRecord || existingReviewRecord.review_status === "pending";
+  });
+  const declinedReviewItemCount = transactions.length - pendingTransactions.length;
+
+  if (!reviewBatchId || pendingTransactions.length === 0) {
+    return {
+      reviewBatchId: null,
+      declinedReviewItemCount,
+      reviewItems: [],
+    };
+  }
+
+  const rows = pendingTransactions.map((transaction) => ({
+    review_batch_id: reviewBatchId,
+    user_id: userId,
+    gmail_message_id: transaction.gmailMessageId,
+    gmail_thread_id: transaction.gmailThreadId,
+    direction: transaction.direction,
+    amount: transaction.amount,
+    currency_code: transaction.currencyCode,
+    bank_name: transaction.bankName,
+    merchant: transaction.merchant,
+    description: transaction.description,
+    category: transaction.category,
+    reference_number: transaction.referenceNumber,
+    status: transaction.status,
+    review_status: "pending",
+    happened_at: transaction.happenedAt,
+    raw_payload: transaction.rawPayload,
+    transaction_id: null,
+  }));
+
+  const { data, error } = await supabase
+    .from("gmail_transaction_review_items")
+    .upsert(rows, {
+      onConflict: "user_id,gmail_message_id",
+    })
+    .select("*");
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return {
+    reviewBatchId,
+    declinedReviewItemCount,
+    reviewItems: ((data ?? []) as GmailTransactionReviewRecord[]).map(mapGmailTransactionReviewRecord),
+  };
+}
+
 async function ingestParsedGmailTransaction(
   supabase: SupabaseClient,
   transaction: ParsedGmailTransaction
@@ -393,6 +599,80 @@ async function ingestParsedGmailTransaction(
   }
 
   return mapTransactionRecord(data as TransactionRecord);
+}
+
+function mapReviewRecordToParsedTransaction(
+  record: GmailTransactionReviewRecord
+): ParsedGmailTransaction {
+  return {
+    source: "gmail",
+    direction: record.direction,
+    amount: Number(record.amount),
+    currencyCode: record.currency_code,
+    bankName: record.bank_name as ParsedGmailTransaction["bankName"],
+    merchant: record.merchant,
+    description: record.description,
+    category: record.category as ParsedGmailTransaction["category"],
+    referenceNumber: record.reference_number,
+    status: record.status,
+    happenedAt: record.happened_at,
+    gmailMessageId: record.gmail_message_id,
+    gmailThreadId: record.gmail_thread_id,
+    rawPayload: record.raw_payload,
+  };
+}
+
+async function markReviewItemsConfirmed(
+  supabase: SupabaseClient,
+  reviewRecords: GmailTransactionReviewRecord[],
+  transactions: Array<{ id: string; gmailMessageId: string | null }>
+) {
+  const transactionIdByMessageId = new Map(
+    transactions
+      .filter((transaction) => transaction.gmailMessageId)
+      .map((transaction) => [transaction.gmailMessageId as string, transaction.id])
+  );
+
+  await Promise.all(
+    reviewRecords.map((record) => {
+      const transactionId = transactionIdByMessageId.get(record.gmail_message_id);
+
+      return supabase
+        .from("gmail_transaction_review_items")
+        .update({
+          review_status: "confirmed",
+          transaction_id: transactionId ?? null,
+        })
+        .eq("id", record.id);
+    })
+  ).then((results) => {
+    const error = results.find((result) => result.error)?.error;
+
+    if (error) {
+      throw new Error(error.message);
+    }
+  });
+}
+
+async function markReviewItemsDeclined(
+  supabase: SupabaseClient,
+  reviewItemIds: string[]
+) {
+  if (reviewItemIds.length === 0) {
+    return;
+  }
+
+  const { error } = await supabase
+    .from("gmail_transaction_review_items")
+    .update({
+      review_status: "declined",
+      transaction_id: null,
+    })
+    .in("id", reviewItemIds);
+
+  if (error) {
+    throw new Error(error.message);
+  }
 }
 
 async function ingestGmailTransactionsInBatches(

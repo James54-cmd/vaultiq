@@ -21,6 +21,8 @@ export async function GET(request: Request) {
       category: searchParams.get("category") ?? undefined,
       direction: searchParams.get("direction") ?? undefined,
       status: searchParams.get("status") ?? undefined,
+      dateFrom: searchParams.get("dateFrom") ?? undefined,
+      dateTo: searchParams.get("dateTo") ?? undefined,
       search: searchParams.get("search") ?? undefined,
       page: searchParams.get("page") ?? undefined,
       pageSize: searchParams.get("pageSize") ?? undefined,

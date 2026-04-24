@@ -16,13 +16,18 @@ function getSummaryMessage(result: GmailSyncResult) {
     result.parsedMessageCount === 0 &&
     result.insertedCount === 0 &&
     result.updatedCount === 0 &&
+    result.reviewItemCount === 0 &&
     result.skippedMessageCount === 0
   ) {
     return "Regular sync only checks new Gmail matches. Run Full Resync to reparse older synced emails and backfill missing references.";
   }
 
+  if (result.reviewItemCount > 0) {
+    return "New Gmail transactions were parsed and are waiting for your review before they enter the ledger.";
+  }
+
   if (result.updatedCount > 0 && result.insertedCount > 0) {
-    return "Full resync reparsed existing Gmail transactions, backfilled missing fields like references, and added any newly discovered rows.";
+    return "Confirmed Gmail transactions were added to the ledger, and existing Gmail rows were refreshed.";
   }
 
   if (result.updatedCount > 0) {
@@ -49,7 +54,7 @@ export function GmailSyncSummaryPanel({ result }: GmailSyncSummaryPanelProps) {
           <p className="pt-1 text-sm text-muted">{getSummaryMessage(result)}</p>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-7">
           <div className="rounded-lg border border-border bg-background px-4 py-4">
             <p className="text-xs uppercase tracking-widest text-muted">Matched</p>
             <p className="financial-figure pt-2 text-xl font-bold text-foreground">
@@ -72,6 +77,12 @@ export function GmailSyncSummaryPanel({ result }: GmailSyncSummaryPanelProps) {
             <p className="text-xs uppercase tracking-widest text-muted">New</p>
             <p className="financial-figure pt-2 text-xl font-bold text-primary">
               {result.insertedCount.toFixed(0)}
+            </p>
+          </div>
+          <div className="rounded-lg border border-border bg-background px-4 py-4">
+            <p className="text-xs uppercase tracking-widest text-muted">Review</p>
+            <p className="financial-figure pt-2 text-xl font-bold text-primary">
+              {result.reviewItemCount.toFixed(0)}
             </p>
           </div>
           <div className="rounded-lg border border-border bg-background px-4 py-4">

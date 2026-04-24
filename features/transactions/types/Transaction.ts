@@ -1,6 +1,7 @@
 import type { z } from "zod";
 
 import type {
+  gmailSyncReviewCommitSchema,
   createManualTransactionFormSchema,
   createManualTransactionSchema,
   gmailSyncSchema,
@@ -32,6 +33,7 @@ export type TransactionOverviewQuery = z.infer<typeof transactionOverviewQuerySc
 export type CreateManualTransactionInput = z.infer<typeof createManualTransactionSchema>;
 export type CreateManualTransactionFormInput = z.input<typeof createManualTransactionFormSchema>;
 export type GmailSyncInput = z.infer<typeof gmailSyncSchema>;
+export type GmailSyncReviewCommitInput = z.infer<typeof gmailSyncReviewCommitSchema>;
 export type UpdateTransactionEditableFieldsInput = z.infer<typeof updateTransactionEditableFieldsSchema>;
 export type UpdateTransactionEditableFieldsFormInput = z.input<typeof updateTransactionEditableFieldsSchema>;
 
@@ -95,6 +97,40 @@ export type GmailSyncSkippedMessage = {
   reason: string;
 };
 
+export type GmailTransactionReviewStatus = "pending" | "confirmed" | "declined";
+
+export type GmailTransactionReviewItem = {
+  id: string;
+  reviewBatchId: string;
+  gmailMessageId: string;
+  gmailThreadId: string | null;
+  direction: TransactionDirection;
+  amount: number;
+  signedAmount: number;
+  currencyCode: string;
+  bankName: string;
+  bankInitials: string;
+  merchant: string;
+  description: string;
+  category: TransactionCategory;
+  categoryLabel: string;
+  referenceNumber: string | null;
+  status: TransactionStatus;
+  reviewStatus: GmailTransactionReviewStatus;
+  happenedAt: string;
+  rawPayload: Record<string, unknown>;
+  transactionId: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type GmailSyncReviewCommitResult = {
+  reviewBatchId: string;
+  confirmedCount: number;
+  declinedCount: number;
+  transactions: Transaction[];
+};
+
 export type GmailPaymentEmailParseResult =
   | {
       kind: "parsed";
@@ -125,6 +161,10 @@ export type GmailSyncResult = {
   parsedMessageCount: number;
   insertedCount: number;
   updatedCount: number;
+  reviewBatchId: string | null;
+  reviewItemCount: number;
+  declinedReviewItemCount: number;
+  reviewItems: GmailTransactionReviewItem[];
   skippedMessageCount: number;
   skippedMessages: GmailSyncSkippedMessage[];
   transactions: Transaction[];

@@ -4,6 +4,7 @@ import { CheckCircle2, Mail, RefreshCcw, ShieldCheck } from "lucide-react";
 
 import { ConfirmationModal } from "@/components/confirmation-modal";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { GmailConnectionStatus } from "@/features/gmail/types/GmailConnection";
 
 type GmailConnectionCardProps = {
@@ -28,6 +29,38 @@ function formatLastSyncedAt(value: string | null) {
     hour: "numeric",
     minute: "2-digit",
   }).format(new Date(value));
+}
+
+export function GmailConnectionCardSkeleton() {
+  return (
+    <div className="rounded-xl border border-border bg-surface px-5 py-5">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <div className="rounded-md p-2 text-secondary">
+              <Mail className="h-4 w-4" />
+            </div>
+            <p className="text-sm font-semibold text-foreground">Gmail Transaction Logging</p>
+          </div>
+
+          <div className="space-y-1">
+            <p className="text-sm text-foreground">
+              Connect Gmail to auto-detect “Payment Successful” emails and log them into VaultIQ.
+            </p>
+            <p className="text-sm text-muted">
+              Manual quick add still works even before Gmail is connected.
+            </p>
+          </div>
+
+          <Skeleton className="h-4 w-40" />
+        </div>
+
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Skeleton className="h-10 w-full sm:w-32" />
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export function GmailConnectionCard({
