@@ -62,7 +62,17 @@ export function useTransactions() {
     };
 
     loadTransactions(nextQuery);
-  }, [query.bankName, query.category, query.direction, query.status, query.page, query.pageSize, deferredSearch]);
+  }, [
+    query.bankName,
+    query.category,
+    query.direction,
+    query.status,
+    query.dateFrom,
+    query.dateTo,
+    query.page,
+    query.pageSize,
+    deferredSearch,
+  ]);
 
   const setSearch = (value: string) => {
     setSearchDraft(value);

@@ -79,6 +79,18 @@ export async function listTransactions(
     summaryQuery = summaryQuery.eq("status", parsedQuery.status);
   }
 
+  if (parsedQuery.dateFrom) {
+    const startDate = new Date(`${parsedQuery.dateFrom}T00:00:00+08:00`).toISOString();
+    pagedTransactionQuery = pagedTransactionQuery.gte("happened_at", startDate);
+    summaryQuery = summaryQuery.gte("happened_at", startDate);
+  }
+
+  if (parsedQuery.dateTo) {
+    const endDate = new Date(`${parsedQuery.dateTo}T23:59:59.999+08:00`).toISOString();
+    pagedTransactionQuery = pagedTransactionQuery.lte("happened_at", endDate);
+    summaryQuery = summaryQuery.lte("happened_at", endDate);
+  }
+
   if (parsedQuery.search) {
     const searchFilter =
       `merchant.ilike.%${parsedQuery.search}%,description.ilike.%${parsedQuery.search}%,reference_number.ilike.%${parsedQuery.search}%`;

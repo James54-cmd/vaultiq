@@ -38,6 +38,13 @@ function statusVariant(status: Transaction["status"]) {
   return "error";
 }
 
+function formatTransactionTime(value: string) {
+  return new Intl.DateTimeFormat("en-PH", {
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
+
 export function TransactionTable({
   title,
   description,
@@ -184,6 +191,9 @@ export function TransactionTable({
                           <div className="flex items-center justify-between gap-3">
                             <div className="text-xs font-medium text-muted">
                               {formatDatePickerLabel(transaction.happenedAt.slice(0, 10))}
+                              <span className="pl-2 text-muted/80">
+                                {formatTransactionTime(transaction.happenedAt)}
+                              </span>
                             </div>
                             <Badge variant={statusVariant(transaction.status)}>
                               {formatTransactionLabel(transaction.status)}
@@ -239,8 +249,13 @@ export function TransactionTable({
                         </div>
 
                         <>
-                          <div className="hidden whitespace-nowrap text-left text-sm text-muted md:block">
-                            {formatDatePickerLabel(transaction.happenedAt.slice(0, 10))}
+                          <div className="hidden whitespace-nowrap text-left md:block">
+                            <div className="text-sm text-muted">
+                              {formatDatePickerLabel(transaction.happenedAt.slice(0, 10))}
+                            </div>
+                            <div className="pt-1 text-xs text-muted/80">
+                              {formatTransactionTime(transaction.happenedAt)}
+                            </div>
                           </div>
 
                           <div className="hidden min-w-0 items-center gap-3 md:flex">

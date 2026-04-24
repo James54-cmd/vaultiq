@@ -23,6 +23,7 @@ import {
   transactionDirections,
   transactionStatuses,
 } from "@/features/transactions/constants/transaction.constants";
+import { TransactionDateRangeFilter } from "@/features/transactions/components/TransactionDateRangeFilter";
 import type {
   TransactionCategory,
   TransactionDirection,
@@ -107,6 +108,8 @@ export function TransactionFiltersToolbar({
     query.category,
     query.direction,
     query.status,
+    query.dateFrom,
+    query.dateTo,
   ].filter(Boolean).length;
   const hasSearchValue = search.trim().length > 0;
   const hasActiveFilters = activeFilterCount > 0 || hasSearchValue;
@@ -120,6 +123,8 @@ export function TransactionFiltersToolbar({
       category: undefined,
       direction: undefined,
       status: undefined,
+      dateFrom: undefined,
+      dateTo: undefined,
     }));
   };
 
@@ -146,6 +151,13 @@ export function TransactionFiltersToolbar({
       ...current,
       page: 1,
       status: value === "all" ? undefined : (value as TransactionStatus),
+    }));
+  const updateDateRangeFilter = (range: Pick<TransactionQuery, "dateFrom" | "dateTo">) =>
+    setQuery((current) => ({
+      ...current,
+      page: 1,
+      dateFrom: range.dateFrom,
+      dateTo: range.dateTo,
     }));
 
   const filterControls = [
@@ -224,6 +236,11 @@ export function TransactionFiltersToolbar({
                     triggerClassName="w-full"
                   />
                 ))}
+                <TransactionDateRangeFilter
+                  query={query}
+                  onChange={updateDateRangeFilter}
+                  className="w-full"
+                />
               </div>
             </PopoverContent>
           </Popover>
@@ -259,6 +276,12 @@ export function TransactionFiltersToolbar({
             triggerClassName="w-[190px] lg:w-[210px]"
           />
         ))}
+
+        <TransactionDateRangeFilter
+          query={query}
+          onChange={updateDateRangeFilter}
+          className="w-[260px] shrink-0 lg:w-[300px]"
+        />
 
         {hasActiveFilters ? (
           <Button type="button" variant="ghost" className="shrink-0" onClick={resetFilters}>
