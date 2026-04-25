@@ -2,6 +2,8 @@ import type { z } from "zod";
 
 import type {
   gmailSyncReviewCommitSchema,
+  createTransactionFormSchema,
+  createTransactionSchema,
   createManualTransactionFormSchema,
   createManualTransactionSchema,
   gmailSyncSchema,
@@ -13,6 +15,8 @@ import type {
   transactionSchema,
   transactionSourceSchema,
   transactionStatusSchema,
+  transactionTypeSchema,
+  updateTransactionSchema,
   updateTransactionEditableFieldsSchema,
 } from "@/features/transactions/schemas/transaction.schema";
 
@@ -24,12 +28,16 @@ export type Transaction = z.infer<typeof transactionSchema> & {
 };
 
 export type TransactionDirection = z.infer<typeof transactionDirectionSchema>;
+export type TransactionType = z.infer<typeof transactionTypeSchema>;
 export type TransactionSource = z.infer<typeof transactionSourceSchema>;
 export type TransactionStatus = z.infer<typeof transactionStatusSchema>;
 export type TransactionCategory = z.infer<typeof transactionCategorySchema>;
 export type TransactionQuery = z.infer<typeof transactionQuerySchema>;
 export type TransactionOverviewPeriod = z.infer<typeof transactionOverviewPeriodSchema>;
 export type TransactionOverviewQuery = z.infer<typeof transactionOverviewQuerySchema>;
+export type CreateTransactionInput = z.infer<typeof createTransactionSchema>;
+export type UpdateTransactionInput = z.infer<typeof updateTransactionSchema>;
+export type CreateTransactionFormInput = z.input<typeof createTransactionFormSchema>;
 export type CreateManualTransactionInput = z.infer<typeof createManualTransactionSchema>;
 export type CreateManualTransactionFormInput = z.input<typeof createManualTransactionFormSchema>;
 export type GmailSyncInput = z.infer<typeof gmailSyncSchema>;
@@ -75,6 +83,7 @@ export type TransactionOverview = {
 
 export type ParsedGmailTransaction = {
   source: "gmail";
+  type: Extract<TransactionType, "income" | "expense" | "transfer">;
   direction: TransactionDirection;
   amount: number;
   currencyCode: string;
@@ -104,6 +113,7 @@ export type GmailTransactionReviewItem = {
   reviewBatchId: string;
   gmailMessageId: string;
   gmailThreadId: string | null;
+  type: Extract<TransactionType, "income" | "expense" | "transfer">;
   direction: TransactionDirection;
   amount: number;
   signedAmount: number;

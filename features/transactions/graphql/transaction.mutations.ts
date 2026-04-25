@@ -1,9 +1,10 @@
 export const CREATE_MANUAL_TRANSACTION_MUTATION = `
-  mutation CreateManualTransaction($input: CreateManualTransactionInput!) {
+  mutation CreateManualTransaction($input: CreateTransactionInput!) {
     createManualTransaction(input: $input) {
       id
-      bankName
-      merchant
+      accountName
+      merchantName
+      type
       amount
       status
     }

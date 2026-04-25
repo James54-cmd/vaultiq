@@ -1,14 +1,17 @@
 import { ApiValidationError } from "@/lib/api-errors";
 import type {
+  CreateTransactionInput,
   CreateManualTransactionInput,
   GmailSyncInput,
   GmailSyncResult,
   GmailSyncReviewCommitInput,
   GmailSyncReviewCommitResult,
+  Transaction,
   TransactionListResponse,
   TransactionOverview,
   TransactionOverviewQuery,
   TransactionQuery,
+  UpdateTransactionInput,
   UpdateTransactionEditableFieldsInput,
 } from "@/features/transactions/types/Transaction";
 import type { ApiErrorResponse, ApiSuccessResponse } from "@/types/api";
@@ -22,8 +25,11 @@ function buildQueryString(query?: TransactionQuery) {
 
   if (query.bankName) searchParams.set("bankName", query.bankName);
   if (query.category) searchParams.set("category", query.category);
+  if (query.type) searchParams.set("type", query.type);
   if (query.direction) searchParams.set("direction", query.direction);
+  if (query.source) searchParams.set("source", query.source);
   if (query.status) searchParams.set("status", query.status);
+  if (query.accountId) searchParams.set("accountId", query.accountId);
   if (query.dateFrom) searchParams.set("dateFrom", query.dateFrom);
   if (query.dateTo) searchParams.set("dateTo", query.dateTo);
   if (query.search) searchParams.set("search", query.search);
@@ -89,7 +95,7 @@ export async function fetchTransactions(query?: TransactionQuery) {
   return payload.data;
 }
 
-export async function createManualTransactionRequest(input: CreateManualTransactionInput) {
+export async function createTransactionRequest(input: CreateTransactionInput) {
   const response = await fetch("/api/transactions", {
     method: "POST",
     headers: {
@@ -103,13 +109,33 @@ export async function createManualTransactionRequest(input: CreateManualTransact
     throw new ApiValidationError(extractApiErrorMessage(error), extractApiValidationDetails(error));
   }
 
-  const payload = await response.json() as ApiSuccessResponse<TransactionListResponse["transactions"][number]>;
+  const payload = await response.json() as ApiSuccessResponse<Transaction>;
   return payload.data;
 }
 
-export async function updateTransactionEditableFieldsRequest(
+export const createManualTransactionRequest = createTransactionRequest;
+
+export async function fetchTransactionByIdRequest(transactionId: string) {
+  const response = await fetch(`/api/transactions/${transactionId}`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    const error = (await response.json()) as ApiErrorResponse;
+    throw new ApiValidationError(extractApiErrorMessage(error), extractApiValidationDetails(error));
+  }
+
+  const payload = await response.json() as ApiSuccessResponse<Transaction>;
+  return payload.data;
+}
+
+export async function updateTransactionRequest(
   transactionId: string,
-  input: UpdateTransactionEditableFieldsInput
+  input: UpdateTransactionInput
 ) {
   const response = await fetch(`/api/transactions/${transactionId}`, {
     method: "PATCH",
@@ -124,7 +150,29 @@ export async function updateTransactionEditableFieldsRequest(
     throw new ApiValidationError(extractApiErrorMessage(error), extractApiValidationDetails(error));
   }
 
-  const payload = await response.json() as ApiSuccessResponse<TransactionListResponse["transactions"][number]>;
+  const payload = await response.json() as ApiSuccessResponse<Transaction>;
+  return payload.data;
+}
+
+export const updateTransactionEditableFieldsRequest = updateTransactionRequest as unknown as (
+  transactionId: string,
+  input: UpdateTransactionEditableFieldsInput
+) => Promise<Transaction>;
+
+export async function deleteTransactionRequest(transactionId: string) {
+  const response = await fetch(`/api/transactions/${transactionId}`, {
+    method: "DELETE",
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    const error = (await response.json()) as ApiErrorResponse;
+    throw new ApiValidationError(extractApiErrorMessage(error), extractApiValidationDetails(error));
+  }
+
+  const payload = await response.json() as ApiSuccessResponse<{ deleted: true }>;
   return payload.data;
 }
 

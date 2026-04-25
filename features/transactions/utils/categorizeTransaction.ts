@@ -13,6 +13,10 @@ export function categorizeTransaction(input: {
   const haystack = `${input.merchant ?? ""} ${input.description ?? ""}`.toLowerCase();
 
   for (const [category, keywords] of Object.entries(transactionCategoryKeywords)) {
+    if (category === "transfers") {
+      continue;
+    }
+
     if (keywords.some((keyword) => haystack.includes(keyword))) {
       return category as TransactionCategory;
     }

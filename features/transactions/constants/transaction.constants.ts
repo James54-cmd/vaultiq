@@ -1,6 +1,7 @@
+export const transactionTypes = ["income", "expense", "transfer", "adjustment", "refund"] as const;
 export const transactionDirections = ["income", "expense", "transfer"] as const;
-export const transactionSources = ["manual", "gmail"] as const;
-export const transactionStatuses = ["completed", "pending", "flagged"] as const;
+export const transactionSources = ["manual", "gmail", "csv", "bank_import", "system"] as const;
+export const transactionStatuses = ["confirmed", "pending", "declined", "duplicate", "needs_review"] as const;
 export const transactionOverviewPeriods = ["daily", "monthly", "yearly", "allTime"] as const;
 
 export const transactionCategories = [

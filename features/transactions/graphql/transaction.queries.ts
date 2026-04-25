@@ -1,8 +1,8 @@
 export const GET_TRANSACTIONS_QUERY = `
   query GetTransactions(
-    $bankName: SupportedBank
+    $bankName: String
     $category: TransactionCategory
-    $direction: TransactionDirection
+    $type: TransactionType
     $status: TransactionStatus
     $search: String
     $period: TransactionOverviewPeriod
@@ -10,18 +10,28 @@ export const GET_TRANSACTIONS_QUERY = `
     transactions(
       bankName: $bankName
       category: $category
-      direction: $direction
+      type: $type
       status: $status
       search: $search
     ) {
       id
       source
+      sourceId
+      type
       direction
       amount
       signedAmount
       currencyCode
       bankName
       bankInitials
+      accountId
+      accountName
+      fromAccountId
+      fromAccountName
+      toAccountId
+      toAccountName
+      originalTransactionId
+      merchantName
       merchant
       description
       category
@@ -30,6 +40,7 @@ export const GET_TRANSACTIONS_QUERY = `
       notes
       status
       kindLabel
+      transactionDate
       happenedAt
       createdAt
       updatedAt

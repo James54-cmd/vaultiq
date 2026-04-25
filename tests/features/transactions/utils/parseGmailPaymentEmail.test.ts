@@ -186,7 +186,43 @@ test("maps Move It booking ids into the transaction reference when the text is p
   }
 
   assert.equal(result.transaction.bankName, "GCash");
+  assert.equal(result.transaction.direction, "expense");
+  assert.equal(result.transaction.type, "expense");
   assert.equal(result.transaction.referenceNumber, "A-94PHP40GWASUAV");
+});
+
+test("parses GCash bills pay receipts as expenses instead of transfers", () => {
+  const message = createPlainTextMessage({
+    id: "gcash-bills-pay-nbi",
+    subject: "Name NBI Total Amount PHP 160.00 Amount Paid PHP 160.00 Fee PHP 0.00",
+    from: "GCash <no-reply@gcash.com>",
+    snippet: "GCash Bills Pay Receipt",
+    internalDate: String(Date.parse("2026-03-28T13:50:40+08:00")),
+    body: [
+      "GCash Bills Pay Receipt",
+      "Name NBI Total Amount PHP 160.00 Amount Paid PHP 160.00 Fee PHP 0.00",
+      "Account Number MP3WCVA6AY",
+      "Date/Time 28 March 2026 01:50:40 PM",
+      "GCash Ref. No. 229029263",
+      "Email",
+    ].join("\n"),
+  });
+
+  const result = parseGmailPaymentEmail(message);
+
+  assert.equal(result.kind, "parsed");
+
+  if (result.kind !== "parsed") {
+    return;
+  }
+
+  assert.equal(result.transaction.bankName, "GCash");
+  assert.equal(result.transaction.direction, "expense");
+  assert.equal(result.transaction.type, "expense");
+  assert.equal(result.transaction.amount, 160);
+  assert.equal(result.transaction.merchant, "NBI");
+  assert.notEqual(result.transaction.category, "transfers");
+  assert.equal(result.transaction.referenceNumber, "NO.229029263");
 });
 
 test("skips UnionBank Mailbox advisory emails that mention requests or inquiries", () => {

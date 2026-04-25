@@ -20,15 +20,17 @@ import {
 import {
   supportedBanks,
   transactionCategories,
-  transactionDirections,
+  transactionSources,
   transactionStatuses,
+  transactionTypes,
 } from "@/features/transactions/constants/transaction.constants";
 import { TransactionDateRangeFilter } from "@/features/transactions/components/TransactionDateRangeFilter";
 import type {
   TransactionCategory,
-  TransactionDirection,
   TransactionQuery,
+  TransactionSource,
   TransactionStatus,
+  TransactionType,
 } from "@/features/transactions/types/Transaction";
 import { formatTransactionLabel } from "@/features/transactions/utils/formatTransactionLabel";
 import { cn } from "@/lib/utils";
@@ -95,9 +97,13 @@ export function TransactionFiltersToolbar({
     value: category,
     label: formatTransactionLabel(category),
   }));
-  const directionFilterOptions: FilterOption[] = transactionDirections.map((direction) => ({
-    value: direction,
-    label: formatTransactionLabel(direction),
+  const typeFilterOptions: FilterOption[] = transactionTypes.map((type) => ({
+    value: type,
+    label: formatTransactionLabel(type),
+  }));
+  const sourceFilterOptions: FilterOption[] = transactionSources.map((source) => ({
+    value: source,
+    label: formatTransactionLabel(source),
   }));
   const statusFilterOptions: FilterOption[] = transactionStatuses.map((status) => ({
     value: status,
@@ -106,7 +112,8 @@ export function TransactionFiltersToolbar({
   const activeFilterCount = [
     query.bankName,
     query.category,
-    query.direction,
+    query.type,
+    query.source,
     query.status,
     query.dateFrom,
     query.dateTo,
@@ -121,7 +128,9 @@ export function TransactionFiltersToolbar({
       page: 1,
       bankName: undefined,
       category: undefined,
+      type: undefined,
       direction: undefined,
+      source: undefined,
       status: undefined,
       dateFrom: undefined,
       dateTo: undefined,
@@ -140,11 +149,18 @@ export function TransactionFiltersToolbar({
       page: 1,
       category: value === "all" ? undefined : (value as TransactionCategory),
     }));
-  const updateDirectionFilter = (value: string) =>
+  const updateTypeFilter = (value: string) =>
     setQuery((current) => ({
       ...current,
       page: 1,
-      direction: value === "all" ? undefined : (value as TransactionDirection),
+      type: value === "all" ? undefined : (value as TransactionType),
+      direction: undefined,
+    }));
+  const updateSourceFilter = (value: string) =>
+    setQuery((current) => ({
+      ...current,
+      page: 1,
+      source: value === "all" ? undefined : (value as TransactionSource),
     }));
   const updateStatusFilter = (value: string) =>
     setQuery((current) => ({
@@ -178,12 +194,20 @@ export function TransactionFiltersToolbar({
       onValueChange: updateCategoryFilter,
     },
     {
-      key: "direction",
-      ariaLabel: "Filter transactions by direction",
-      value: query.direction ?? "all",
-      placeholder: "All Directions",
-      options: directionFilterOptions,
-      onValueChange: updateDirectionFilter,
+      key: "type",
+      ariaLabel: "Filter transactions by type",
+      value: query.type ?? "all",
+      placeholder: "All Types",
+      options: typeFilterOptions,
+      onValueChange: updateTypeFilter,
+    },
+    {
+      key: "source",
+      ariaLabel: "Filter transactions by source",
+      value: query.source ?? "all",
+      placeholder: "All Sources",
+      options: sourceFilterOptions,
+      onValueChange: updateSourceFilter,
     },
     {
       key: "status",

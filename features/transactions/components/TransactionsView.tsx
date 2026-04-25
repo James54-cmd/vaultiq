@@ -4,6 +4,16 @@ import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 import { SectionHeader } from "@/components/section-header";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { QuickAddTransactionModal } from "@/features/transactions/components/QuickAddTransactionModal";
 import { TransactionEditDialog } from "@/features/transactions/components/TransactionEditDialog";
 import { TransactionFiltersToolbar } from "@/features/transactions/components/TransactionFiltersToolbar";
@@ -15,6 +25,7 @@ import {
   GmailConnectionCardSkeleton,
 } from "@/features/gmail/components/GmailConnectionCard";
 import { useGmailConnection } from "@/features/gmail/hooks/useGmailConnection";
+import { useFinancialAccounts } from "@/features/accounts/hooks/useFinancialAccounts";
 import { useTransactions } from "@/features/transactions/hooks/useTransactions";
 import type { GmailSyncResult, Transaction } from "@/features/transactions/types/Transaction";
 import { formatCurrency } from "@/lib/format";
@@ -24,6 +35,8 @@ export function TransactionsView() {
   const searchParams = useSearchParams();
   const [gmailSyncResult, setGmailSyncResult] = useState<GmailSyncResult | null>(null);
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
+  const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
+  const [isDeletingTransaction, setIsDeletingTransaction] = useState(false);
   const gmailSyncEnabled = isGmailSyncEnabled();
   const { status: gmailStatus, error: gmailError, isPending: gmailPending, reloadConnection } =
     useGmailConnection(gmailSyncEnabled);
@@ -41,10 +54,12 @@ export function TransactionsView() {
     setQuery,
     createTransaction,
     updateTransaction,
+    deleteTransaction,
     syncGmailTransactions,
     commitGmailTransactionReview,
     importCSVTransactions,
   } = useTransactions();
+  const { accounts, reloadAccounts } = useFinancialAccounts();
   const gmailMessage =
     searchParams.get("gmail_error") === "connection_failed"
       ? "Gmail could not be connected. Please try again."
@@ -65,7 +80,13 @@ export function TransactionsView() {
         action={
           <div className="flex items-center gap-2">
             <CSVImportFlow onImport={importCSVTransactions} />
-            <QuickAddTransactionModal onSubmit={createTransaction} />
+            <QuickAddTransactionModal
+              accounts={accounts}
+              onSubmit={async (input) => {
+                await createTransaction(input);
+                reloadAccounts();
+              }}
+            />
           </div>
         }
       />
@@ -104,6 +125,7 @@ export function TransactionsView() {
             const result = await syncGmailTransactions();
             setGmailSyncResult(result);
             reloadConnection();
+            reloadAccounts();
           }}
           onFullResync={async () => {
             const result = await syncGmailTransactions({
@@ -113,6 +135,7 @@ export function TransactionsView() {
             });
             setGmailSyncResult(result);
             reloadConnection();
+            reloadAccounts();
           }}
         />
       ) : (
@@ -134,11 +157,12 @@ export function TransactionsView() {
             selectedReviewItemIds,
           })
         }
+        onAfterCommit={reloadAccounts}
       />
 
       <TransactionTable
         title="Transaction Ledger"
-        description="Every row keeps the source bank visible, with parsed references where available. Only merchant, category, and notes can be edited."
+        description="Every row keeps account, lifecycle status, source, and parsed references visible."
         toolbar={
           <TransactionFiltersToolbar
             search={search}
@@ -158,10 +182,12 @@ export function TransactionsView() {
           }))
         }
         onEditTransaction={setSelectedTransaction}
+        onDeleteTransaction={setTransactionToDelete}
       />
 
       <TransactionEditDialog
         transaction={selectedTransaction}
+        accounts={accounts}
         open={selectedTransaction !== null}
         onOpenChange={(open) => {
           if (!open) {
@@ -171,8 +197,52 @@ export function TransactionsView() {
         onSubmit={async (transactionId, input) => {
           const updatedTransaction = await updateTransaction(transactionId, input);
           setSelectedTransaction(updatedTransaction);
+          reloadAccounts();
         }}
       />
+
+      <AlertDialog
+        open={transactionToDelete !== null}
+        onOpenChange={(open) => {
+          if (!open && !isDeletingTransaction) {
+            setTransactionToDelete(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader className="px-5 pt-5">
+            <AlertDialogTitle>Delete transaction?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this transaction? This may affect your dashboard and account balance.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="px-5 pb-5">
+            <AlertDialogCancel disabled={isDeletingTransaction}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isDeletingTransaction}
+              onClick={async (event) => {
+                event.preventDefault();
+
+                if (!transactionToDelete) {
+                  return;
+                }
+
+                setIsDeletingTransaction(true);
+
+                try {
+                  await deleteTransaction(transactionToDelete.id);
+                  reloadAccounts();
+                  setTransactionToDelete(null);
+                } finally {
+                  setIsDeletingTransaction(false);
+                }
+              }}
+            >
+              {isDeletingTransaction ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

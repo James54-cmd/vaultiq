@@ -141,8 +141,8 @@ export async function listBudgets(
   const { data: transactionRows, error: transactionError } = await supabase
     .from("transactions")
     .select("amount, currency_code, category, happened_at")
-    .eq("direction", "expense")
-    .in("status", ["completed", "pending"])
+    .eq("type", "expense")
+    .eq("status", "confirmed")
     .gte("happened_at", toBudgetRangeStartIso(startsAtValues[0]))
     .lte("happened_at", toBudgetRangeEndIso(endsAtValues[endsAtValues.length - 1]));
 

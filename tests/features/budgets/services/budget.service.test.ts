@@ -54,9 +54,9 @@ test("computeBudgetMetrics derives spent, remaining, and alert states from match
   assert.equal(overBudget.alertState, "over");
 });
 
-test("listBudgets requests expense rows with completed and pending statuses and includes both in spend", async () => {
+test("listBudgets requests confirmed expense rows for spend", async () => {
   const budgetRecord = createBudgetRecord();
-  let statusFilter: unknown[] | null = null;
+  const equalityFilters: Record<string, string> = {};
 
   const budgetQuery = {
     data: [budgetRecord],
@@ -92,13 +92,7 @@ test("listBudgets requests expense rows with completed and pending statuses and 
       return this;
     },
     eq(column: string, value: string) {
-      assert.equal(column, "direction");
-      assert.equal(value, "expense");
-      return this;
-    },
-    in(column: string, values: unknown[]) {
-      assert.equal(column, "status");
-      statusFilter = values;
+      equalityFilters[column] = value;
       return this;
     },
     gte() {
@@ -125,7 +119,8 @@ test("listBudgets requests expense rows with completed and pending statuses and 
 
   const budgets = await listBudgets(supabase as never, { status: "active" });
 
-  assert.deepEqual(statusFilter, ["completed", "pending"]);
+  assert.equal(equalityFilters.type, "expense");
+  assert.equal(equalityFilters.status, "confirmed");
   assert.equal(budgets[0].spentAmount, 300);
   assert.equal(budgets[0].remainingAmount, 700);
   assert.equal(budgets[0].alertState, "healthy");

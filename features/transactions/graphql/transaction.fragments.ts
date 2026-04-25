@@ -2,12 +2,22 @@ export const TRANSACTION_FIELDS_FRAGMENT = `
   fragment TransactionFields on Transaction {
     id
     source
+    sourceId
+    type
     direction
     amount
     signedAmount
     currencyCode
     bankName
     bankInitials
+    accountId
+    accountName
+    fromAccountId
+    fromAccountName
+    toAccountId
+    toAccountName
+    originalTransactionId
+    merchantName
     merchant
     description
     category
@@ -16,6 +26,7 @@ export const TRANSACTION_FIELDS_FRAGMENT = `
     notes
     status
     kindLabel
+    transactionDate
     happenedAt
     createdAt
     updatedAt

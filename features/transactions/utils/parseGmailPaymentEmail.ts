@@ -358,6 +358,24 @@ function hasNonTransactionAmountContext(content: string) {
   );
 }
 
+function hasExplicitExpensePaymentSignal(content: string) {
+  return /(?:bills?\s+pay(?:\s+receipt)?)|(?:bill payment(?:\s+receipt)?)|(?:amount paid)|(?:total paid)|(?:paid by)|(?:purchase receipt)|(?:official receipt)|(?:e-?receipt)|(?:payment of\s*(?:(?:PHP|USD)(?=\s*[0-9])|₱|\$|\bP(?=\s?\d))?\s*[0-9][0-9,]*(?:\.[0-9]{1,2})?\s+for\s+)/i.test(
+    content
+  );
+}
+
+function hasExplicitFundTransferSignal(content: string) {
+  return /(?:\byour transfer\b)|(?:transfer sent)|(?:successful transfer to)|(?:you sent)|(?:sent to\b)|(?:outgoing transfer)|(?:transfer from)|(?:transfer to)|(?:transfer amount)|(?:instapay)|(?:pesonet)|(?:wallet top-up)|(?:fund transfer)|(?:bank transfer)/i.test(
+    content
+  );
+}
+
+function hasOutgoingTransferSignal(content: string) {
+  return /(?:\byour transfer\b)|(?:transfer sent)|(?:successful transfer to)|(?:you sent)|(?:sent to\b)|(?:outgoing transfer)/i.test(
+    content
+  );
+}
+
 function parseDirection(content: string) {
   const transferFromValue =
     content.match(/(?:transfer from|from account|source account)\s*[:#-]?\s*([^\n\r]+)/i)?.[1]?.trim() ??
@@ -370,6 +388,10 @@ function parseDirection(content: string) {
     return "income" as const;
   }
 
+  if (hasExplicitExpensePaymentSignal(content) && !hasExplicitFundTransferSignal(content)) {
+    return "expense" as const;
+  }
+
   if (
     /(received|credited|deposit|incoming|salary|payroll|money received|transfer received|refund received|refund credited|received in (?:your|my) account|transferred to (?:your|my) account|transferred to account|credited to (?:your|my) account|posted to (?:your|my) account)/i.test(
       content
@@ -378,11 +400,7 @@ function parseDirection(content: string) {
     return "income" as const;
   }
 
-  if (
-    /\byour transfer\b|transfer sent|successful transfer to|you sent|sent to\b|outgoing transfer/i.test(
-      content
-    )
-  ) {
+  if (hasOutgoingTransferSignal(content)) {
     return "transfer" as const;
   }
 
@@ -400,7 +418,7 @@ function parseDirection(content: string) {
     return "transfer" as const;
   }
 
-  if (/(transfer to|transferred to|instapay|pesonet|wallet top-up|fund transfer|bank transfer)/i.test(content)) {
+  if (hasExplicitFundTransferSignal(content) || /(transferred to)/i.test(content)) {
     return "transfer" as const;
   }
 
@@ -424,7 +442,7 @@ function hasUnsuccessfulPaymentSignal(content: string) {
 }
 
 function isNonPostedPaymentNotice(content: string) {
-  // Unsuccessful / failed payments are handled separately — they get flagged, not skipped.
+  // Unsuccessful / failed payments are handled separately: they get flagged, not skipped.
   if (hasUnsuccessfulPaymentSignal(content)) {
     return false;
   }
@@ -523,6 +541,14 @@ function sanitizeMerchantCandidate(value: string | null | undefined) {
 }
 
 function parseMerchant(content: string, from: string) {
+  const gcashNameMatch = content.match(
+    /\bname\s+([A-Za-z0-9&.,'()\/ -]{2,120}?)(?=\s+(?:total amount|amount paid|fee|account number|date\/time)\b|[\n\r])/i
+  );
+  const gcashNameMerchant = sanitizeMerchantCandidate(gcashNameMatch?.[1]);
+  if (gcashNameMerchant) {
+    return gcashNameMerchant;
+  }
+
   const labeledMatch = content.match(/(?:merchant|biller|payee|recipient|store)\s*[:#-]?\s*([^\n\r]+)/i);
   const labeledMerchant = sanitizeMerchantCandidate(labeledMatch?.[1]);
   if (labeledMerchant) {
@@ -654,6 +680,7 @@ export function parseGmailPaymentEmail(message: GmailMessageDetail): GmailPaymen
   }
 
   const direction = parseDirection(combined);
+  const type = direction;
   const merchant = parseMerchant(combined, from);
   const description = subject.trim().length > 0 ? subject.trim().slice(0, 160) : merchant;
   const category = categorizeTransaction({
@@ -664,6 +691,7 @@ export function parseGmailPaymentEmail(message: GmailMessageDetail): GmailPaymen
 
   const transaction: ParsedGmailTransaction = {
     source: "gmail",
+    type,
     direction,
     amount: parsedAmount.amount,
     currencyCode: parsedAmount.currencyCode,
@@ -673,10 +701,10 @@ export function parseGmailPaymentEmail(message: GmailMessageDetail): GmailPaymen
     category,
     referenceNumber: extractReferenceNumber(combined),
     status: hasUnsuccessfulPaymentSignal(combined)
-      ? ("flagged" as const)
+      ? ("declined" as const)
       : /pending/i.test(combined)
         ? ("pending" as const)
-        : ("completed" as const),
+        : ("needs_review" as const),
     happenedAt: message.internalDate
       ? new Date(Number(message.internalDate)).toISOString()
       : new Date().toISOString(),

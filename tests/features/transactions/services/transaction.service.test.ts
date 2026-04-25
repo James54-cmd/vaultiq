@@ -9,6 +9,7 @@ import type {
   GmailTransactionReviewRecord,
   TransactionRecord,
 } from "@/features/transactions/types/TransactionRecord";
+import { createTransactionSchema } from "@/features/transactions/schemas/transaction.schema";
 
 let parsedTransactionsResult: ParsedGmailTransactionsResult;
 
@@ -22,6 +23,7 @@ await mock.module("@/features/transactions/services/gmail-sync.service", {
 
 const {
   commitGmailTransactionReview,
+  summarizeTransactionRows,
   syncGmailTransactions,
   updateTransactionEditableFields,
 } = await import("@/features/transactions/services/transaction.service");
@@ -31,6 +33,7 @@ function createParsedTransaction(
 ): ParsedGmailTransaction {
   return {
     source: "gmail",
+    type: "transfer",
     direction: "transfer",
     amount: 150,
     currencyCode: "PHP",
@@ -39,7 +42,7 @@ function createParsedTransaction(
     description: "Successful MariBank Transfer",
     category: "transfers",
     referenceNumber: null,
-    status: "completed",
+    status: "needs_review",
     happenedAt: "2026-04-18T06:13:21.000Z",
     gmailMessageId: "gmail-msg-1",
     gmailThreadId: "gmail-thread-1",
@@ -303,6 +306,106 @@ function createSupabaseUpdateStub(initialRecord: TransactionRecord) {
 beforeEach(() => {
   parsedTransactionsResult = createParsedTransactionsResult();
   fetchParsedGmailTransactionsMock.mock.resetCalls();
+});
+
+test("transaction validation normalizes lifecycle fields and compatibility aliases", () => {
+  const accountId = "33333333-3333-4333-8333-333333333333";
+  const expense = createTransactionSchema.parse({
+    type: "expense",
+    amount: -160,
+    accountId,
+    merchant: "NBI",
+    transactionDate: "2026-03-28",
+  });
+
+  assert.equal(expense.amount, 160);
+  assert.equal(expense.direction, "expense");
+  assert.equal(expense.source, "manual");
+  assert.equal(expense.status, "confirmed");
+  assert.equal(expense.merchantName, "NBI");
+
+  const gmailNeedsReview = createTransactionSchema.parse({
+    source: "gmail",
+    type: "expense",
+    amount: 160,
+    merchantName: "GCash receipt",
+    status: "needs_review",
+    transactionDate: "2026-03-28",
+  });
+
+  assert.equal(gmailNeedsReview.accountId, null);
+  assert.equal(gmailNeedsReview.status, "needs_review");
+});
+
+test("transaction validation rejects invalid account lifecycle edges", () => {
+  const accountId = "33333333-3333-4333-8333-333333333333";
+
+  assert.throws(
+    () => createTransactionSchema.parse({
+      type: "transfer",
+      amount: 100,
+      fromAccountId: accountId,
+      toAccountId: accountId,
+      merchantName: "Transfer",
+      transactionDate: "2026-03-28",
+    }),
+    /Transfer accounts must be different/
+  );
+
+  assert.throws(
+    () => createTransactionSchema.parse({
+      type: "adjustment",
+      amount: 50,
+      accountId,
+      merchantName: "Opening balance",
+      transactionDate: "2026-03-28",
+    }),
+    /Adjustment note is required/
+  );
+});
+
+test("transaction rollups exclude non-confirmed rows and cap linked refund reductions", () => {
+  const summary = summarizeTransactionRows([
+    { id: "expense-1", type: "expense", amount: 100, status: "confirmed", category: "food" },
+    { id: "expense-2", type: "expense", amount: 25, status: "declined", category: "food" },
+    { id: "income-1", type: "income", amount: 200, status: "confirmed", category: "salary" },
+    { id: "transfer-1", type: "transfer", amount: 500, status: "confirmed", category: "transfers" },
+    {
+      id: "refund-1",
+      type: "refund",
+      amount: 40,
+      status: "confirmed",
+      category: "shopping",
+      original_transaction_id: "expense-1",
+    },
+    {
+      id: "refund-2",
+      type: "refund",
+      amount: 500,
+      status: "confirmed",
+      category: "shopping",
+      original_transaction_id: "missing-expense",
+    },
+  ]);
+
+  assert.equal(summary.incomeAmount, 200);
+  assert.equal(summary.expenseAmount, 60);
+});
+
+test("linked refunds cannot make reported spending negative", () => {
+  const summary = summarizeTransactionRows([
+    { id: "expense-1", type: "expense", amount: 30, status: "confirmed", category: "food" },
+    {
+      id: "refund-1",
+      type: "refund",
+      amount: 90,
+      status: "confirmed",
+      category: "food",
+      original_transaction_id: "expense-1",
+    },
+  ]);
+
+  assert.equal(summary.expenseAmount, 0);
 });
 
 test("sync queues new Gmail rows, commit inserts selected rows, and full resync updates existing rows", async () => {

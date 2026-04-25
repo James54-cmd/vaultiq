@@ -3,17 +3,19 @@
 import { useDeferredValue, useEffect, useRef, useState, useTransition } from "react";
 import type { CSVRow } from "@/features/transactions/components/CSVImportFlow";
 
-import { createManualTransactionFormSchema } from "@/features/transactions/schemas/transaction.schema";
+import { createTransactionFormSchema } from "@/features/transactions/schemas/transaction.schema";
+import { supportedBanks, transactionCategories } from "@/features/transactions/constants/transaction.constants";
 import {
   commitGmailTransactionReviewRequest,
-  createManualTransactionRequest,
+  createTransactionRequest,
+  deleteTransactionRequest,
   fetchTransactions,
   syncGmailTransactionsRequest,
-  updateTransactionEditableFieldsRequest,
+  updateTransactionRequest,
 } from "@/features/transactions/services/transaction-api.service";
 import type {
-  CreateManualTransactionInput,
-  CreateManualTransactionFormInput,
+  CreateTransactionInput,
+  CreateTransactionFormInput,
   GmailSyncInput,
   GmailSyncResult,
   GmailSyncReviewCommitInput,
@@ -21,7 +23,7 @@ import type {
   TransactionListPagination,
   TransactionListSummary,
   TransactionQuery,
-  UpdateTransactionEditableFieldsInput,
+  UpdateTransactionInput,
 } from "@/features/transactions/types/Transaction";
 
 export function useTransactions() {
@@ -65,8 +67,10 @@ export function useTransactions() {
   }, [
     query.bankName,
     query.category,
-    query.direction,
+    query.type,
+    query.source,
     query.status,
+    query.accountId,
     query.dateFrom,
     query.dateTo,
     query.page,
@@ -87,11 +91,11 @@ export function useTransactions() {
   };
 
   const createTransaction = async (
-    input: CreateManualTransactionInput | CreateManualTransactionFormInput
+    input: CreateTransactionInput | CreateTransactionFormInput
   ) => {
-    const payload = createManualTransactionFormSchema.safeParse(input);
-    const parsedPayload = payload.success ? payload.data : input as CreateManualTransactionInput;
-    await createManualTransactionRequest(parsedPayload);
+    const payload = createTransactionFormSchema.safeParse(input);
+    const parsedPayload = payload.success ? payload.data : input as CreateTransactionInput;
+    await createTransactionRequest(parsedPayload);
     loadTransactions({
       ...query,
       search: deferredSearch.trim().length > 0 ? deferredSearch.trim() : undefined,
@@ -100,15 +104,23 @@ export function useTransactions() {
 
   const updateTransaction = async (
     transactionId: string,
-    input: UpdateTransactionEditableFieldsInput
+    input: UpdateTransactionInput
   ) => {
-    const updatedTransaction = await updateTransactionEditableFieldsRequest(transactionId, input);
+    const updatedTransaction = await updateTransactionRequest(transactionId, input);
     loadTransactions({
       ...query,
       search: deferredSearch.trim().length > 0 ? deferredSearch.trim() : undefined,
     });
 
     return updatedTransaction;
+  };
+
+  const deleteTransaction = async (transactionId: string) => {
+    await deleteTransactionRequest(transactionId);
+    loadTransactions({
+      ...query,
+      search: deferredSearch.trim().length > 0 ? deferredSearch.trim() : undefined,
+    });
   };
 
   const syncGmailTransactions = (input?: GmailSyncInput) => {
@@ -159,23 +171,35 @@ export function useTransactions() {
       const batch = rows.slice(i, i + batchSize);
       await Promise.all(
         batch.map((row) => {
-          const input: CreateManualTransactionInput = {
-            source: "manual",
+          const bankName = supportedBanks.find((bank) => bank === row.BankName) ?? "UnionBank";
+          const category = transactionCategories.find((item) => item === row.Category?.toLowerCase()) ?? "uncategorized";
+          const input: CreateTransactionInput = {
+            source: "csv",
+            type: row.Direction,
+            direction: row.Direction === "transfer" ? "transfer" : row.Direction,
             currencyCode: "PHP",
-            direction: row.Direction,
             amount: parseFloat(row.Amount.replace(/,/g, "")),
-            bankName: (row.BankName || "UnionBank") as any,
+            accountId: null,
+            fromAccountId: null,
+            toAccountId: null,
+            originalTransactionId: null,
+            merchantName: row.Description,
             merchant: row.Description,
             description: row.Description,
-            category: (row.Category?.toLowerCase() || "uncategorized") as any,
-            referenceNumber: row.ReferenceNumber || undefined,
+            category,
+            referenceNumber: row.ReferenceNumber || null,
+            transactionDate: row.Date,
             happenedAt: row.Date,
-            status: "completed",
-            notes: "Imported via CSV",
+            status: "needs_review",
+            notes: `Imported via CSV from ${bankName}`,
+            sourceId: row.ReferenceNumber || null,
+            sourceMetadata: {
+              bankName,
+            },
           };
-          const payload = createManualTransactionFormSchema.safeParse(input);
+          const payload = createTransactionFormSchema.safeParse(input);
           const parsedPayload = payload.success ? payload.data : input;
-          return createManualTransactionRequest(parsedPayload);
+          return createTransactionRequest(parsedPayload);
         })
       );
     }
@@ -200,6 +224,7 @@ export function useTransactions() {
     setQuery,
     createTransaction,
     updateTransaction,
+    deleteTransaction,
     syncGmailTransactions,
     commitGmailTransactionReview,
     importCSVTransactions,

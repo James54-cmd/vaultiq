@@ -1,9 +1,13 @@
-import type { TransactionDirection } from "@/features/transactions/types/Transaction";
+import type { TransactionType } from "@/features/transactions/types/Transaction";
 
-export function getSignedTransactionAmount(direction: TransactionDirection, amount: number) {
-  if (direction === "income") {
+export function getSignedTransactionAmount(type: TransactionType, amount: number) {
+  if (type === "income" || type === "refund" || type === "transfer") {
     return amount;
   }
 
-  return amount * -1;
+  if (type === "adjustment") {
+    return amount;
+  }
+
+  return Math.abs(amount) * -1;
 }

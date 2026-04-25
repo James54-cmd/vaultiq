@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { FieldError } from "@/components/ui/field-error";
 import { CurrencyInput } from "@/components/ui/currency-input";
@@ -32,77 +32,190 @@ import {
   TransactionDialogSection,
   transactionDialogContentClassName,
 } from "@/features/transactions/components/TransactionDialogScaffold";
-import { createManualTransactionFormSchema } from "@/features/transactions/schemas/transaction.schema";
+import { createTransactionFormSchema } from "@/features/transactions/schemas/transaction.schema";
 import {
-  supportedBanks,
   transactionCategories,
-  transactionDirections,
   transactionStatuses,
+  transactionTypes,
 } from "@/features/transactions/constants/transaction.constants";
 import { formatTransactionLabel } from "@/features/transactions/utils/formatTransactionLabel";
-import type { CreateManualTransactionInput, CreateManualTransactionFormInput } from "@/features/transactions/types/Transaction";
+import type {
+  CreateTransactionFormInput,
+  CreateTransactionInput,
+  Transaction,
+} from "@/features/transactions/types/Transaction";
+import type { FinancialAccount } from "@/features/accounts/types/FinancialAccount";
 import { ApiValidationError } from "@/lib/api-errors";
 import { cn } from "@/lib/utils";
 
 type QuickAddTransactionModalProps = {
   triggerLabel?: string;
-  onSubmit: (input: CreateManualTransactionInput | CreateManualTransactionFormInput) => Promise<void>;
+  accounts?: FinancialAccount[];
+  transaction?: Transaction | null;
+  open?: boolean;
+  mode?: "create" | "edit";
+  onOpenChange?: (open: boolean) => void;
+  onSubmit: (input: CreateTransactionInput | CreateTransactionFormInput) => Promise<void>;
 };
 
-const initialValues: CreateManualTransactionFormInput = {
-  direction: "expense",
+const todayInputValue = () => new Date().toISOString().slice(0, 10);
+
+const emptyValues: CreateTransactionFormInput = {
+  source: "manual",
+  type: "expense",
   amount: "",
   currencyCode: "PHP",
-  bankName: "GCash",
+  accountId: "none",
+  fromAccountId: "none",
+  toAccountId: "none",
+  originalTransactionId: "none",
+  merchantName: "",
   merchant: "",
   description: "",
   category: "uncategorized",
   referenceNumber: "",
   notes: "",
-  status: "completed",
-  happenedAt: new Date().toISOString().slice(0, 10),
+  status: "confirmed",
+  transactionDate: todayInputValue(),
 };
+
+function getAccountLabel(account: FinancialAccount) {
+  return `${account.name} - ${account.institutionName}`;
+}
+
+function getInitialValues(transaction?: Transaction | null): CreateTransactionFormInput {
+  if (!transaction) {
+    return {
+      ...emptyValues,
+      transactionDate: todayInputValue(),
+    };
+  }
+
+  return {
+    source: transaction.source,
+    type: transaction.type,
+    amount: String(transaction.amount),
+    currencyCode: transaction.currencyCode,
+    accountId: transaction.accountId ?? "none",
+    fromAccountId: transaction.fromAccountId ?? "none",
+    toAccountId: transaction.toAccountId ?? "none",
+    originalTransactionId: transaction.originalTransactionId ?? "none",
+    merchantName: transaction.merchantName,
+    merchant: transaction.merchantName,
+    description: transaction.description,
+    category: transaction.category,
+    referenceNumber: transaction.referenceNumber ?? "",
+    notes: transaction.notes ?? "",
+    status: transaction.status,
+    transactionDate: transaction.transactionDate.slice(0, 10),
+  };
+}
 
 export function QuickAddTransactionModal({
   triggerLabel = "Quick Add",
+  accounts = [],
+  transaction = null,
+  open,
+  mode = transaction ? "edit" : "create",
+  onOpenChange,
   onSubmit,
 }: QuickAddTransactionModalProps) {
-  const [open, setOpen] = useState(false);
-  const [values, setValues] = useState<CreateManualTransactionFormInput>(initialValues);
+  const isControlled = open !== undefined && onOpenChange !== undefined;
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isOpen = isControlled ? open : internalOpen;
+  const setOpen = isControlled ? onOpenChange : setInternalOpen;
+  const activeAccounts = useMemo(
+    () => accounts.filter((account) => account.status !== "archived"),
+    [accounts]
+  );
+  const [values, setValues] = useState<CreateTransactionFormInput>(() => getInitialValues(transaction));
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[] | undefined>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
+  const isTransfer = values.type === "transfer";
+  const isAdjustment = values.type === "adjustment";
 
   useEffect(() => {
-    if (!open) {
-      setValues(initialValues);
+    if (!isOpen) {
+      setValues(getInitialValues(mode === "edit" ? transaction : null));
       setFieldErrors({});
       setFormError(null);
       setIsPending(false);
+      return;
     }
-  }, [open]);
+
+    setValues(getInitialValues(transaction));
+    setFieldErrors({});
+    setFormError(null);
+    setIsPending(false);
+  }, [isOpen, mode, transaction]);
+
+  const updateValue = <Key extends keyof CreateTransactionFormInput>(
+    key: Key,
+    value: CreateTransactionFormInput[Key]
+  ) => {
+    setValues((current) => ({
+      ...current,
+      [key]: value,
+    }));
+  };
+
+  const accountSelector = (
+    id: "accountId" | "fromAccountId" | "toAccountId",
+    label: string,
+    error?: string
+  ) => (
+    <div className="space-y-1.5">
+      <Label htmlFor={`transaction-${id}`} className="text-xs text-muted">{label}</Label>
+      <Select
+        value={(values[id] as string | null | undefined) ?? "none"}
+        onValueChange={(value) => updateValue(id, value)}
+      >
+        <SelectTrigger id={`transaction-${id}`} className="h-9 text-sm">
+          <SelectValue placeholder="Select account" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="none">Select account</SelectItem>
+          {activeAccounts.map((account) => (
+            <SelectItem key={account.id} value={account.id}>
+              {getAccountLabel(account)}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <FieldError message={error} />
+    </div>
+  );
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button>{triggerLabel}</Button>
-      </DialogTrigger>
+    <Dialog open={isOpen} onOpenChange={setOpen}>
+      {!isControlled ? (
+        <DialogTrigger asChild>
+          <Button>{triggerLabel}</Button>
+        </DialogTrigger>
+      ) : null}
       <DialogContent className={cn(transactionDialogContentClassName, "bg-surface-raised")}>
         <TransactionDialogHeaderFrame className="pr-10">
           <TransactionDialogHeading
-            title={<DialogTitle className="pr-6 text-base font-semibold text-foreground sm:text-lg">New Transaction</DialogTitle>}
+            title={
+              <DialogTitle className="pr-6 text-base font-semibold text-foreground sm:text-lg">
+                {mode === "edit" ? "Edit Transaction" : "New Transaction"}
+              </DialogTitle>
+            }
             description={
               <DialogDescription className="text-sm leading-5 text-muted">
-                Add a transaction manually without waiting for an imported record.
+                {mode === "edit"
+                  ? "Update the lifecycle fields that determine reporting and account balance effects."
+                  : "Add a transaction manually with clear type, status, source, and account links."}
               </DialogDescription>
             }
           />
           <TransactionDialogMetaList
             className="sm:grid-cols-3"
             items={[
-              { label: "Direction", value: formatTransactionLabel(values.direction) },
-              { label: "Status", value: formatTransactionLabel(values.status ?? "completed") },
-              { label: "Bank", value: values.bankName },
+              { label: "Type", value: formatTransactionLabel(values.type) },
+              { label: "Status", value: formatTransactionLabel(String(values.status ?? "confirmed")) },
+              { label: "Source", value: formatTransactionLabel(String(values.source ?? "manual")) },
             ]}
           />
         </TransactionDialogHeaderFrame>
@@ -115,7 +228,7 @@ export function QuickAddTransactionModal({
             setFieldErrors({});
             setFormError(null);
 
-            const parsed = createManualTransactionFormSchema.safeParse(values);
+            const parsed = createTransactionFormSchema.safeParse(values);
             if (!parsed.success) {
               const flattened = parsed.error.flatten();
               setFieldErrors(flattened.fieldErrors);
@@ -144,30 +257,34 @@ export function QuickAddTransactionModal({
           <TransactionDialogBody>
             <div className="space-y-6">
               <TransactionDialogSection
-                title="Transaction Details"
-                description="Set the movement type, amount, timing, and source account."
+                title="Lifecycle"
+                description="Set the transaction type, status, amount, date, and affected account."
               >
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                   <div className="space-y-1.5">
-                    <Label htmlFor="transaction-direction" className="text-xs text-muted">Direction</Label>
+                    <Label htmlFor="transaction-type" className="text-xs text-muted">Type</Label>
                     <Select
-                      value={values.direction}
+                      value={values.type}
                       onValueChange={(value) =>
-                        setValues((c) => ({ ...c, direction: value as CreateManualTransactionFormInput["direction"] }))
+                        setValues((current) => ({
+                          ...current,
+                          type: value as CreateTransactionFormInput["type"],
+                          accountId: value === "transfer" ? current.fromAccountId : current.accountId,
+                        }))
                       }
                     >
-                      <SelectTrigger id="transaction-direction" className="h-9 text-sm">
-                        <SelectValue placeholder="Select direction" />
+                      <SelectTrigger id="transaction-type" className="h-9 text-sm">
+                        <SelectValue placeholder="Select type" />
                       </SelectTrigger>
                       <SelectContent>
-                        {transactionDirections.map((direction) => (
-                          <SelectItem key={direction} value={direction}>
-                            {formatTransactionLabel(direction)}
+                        {transactionTypes.map((type) => (
+                          <SelectItem key={type} value={type}>
+                            {formatTransactionLabel(type)}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
-                    <FieldError message={fieldErrors.direction?.[0]} />
+                    <FieldError message={fieldErrors.type?.[0]} />
                   </div>
 
                   <div className="space-y-1.5">
@@ -175,10 +292,9 @@ export function QuickAddTransactionModal({
                     <CurrencyInput
                       id="transaction-amount"
                       value={values.amount}
+                      min={isAdjustment ? undefined : "0"}
                       currencyCode={values.currencyCode}
-                      onChange={(event) =>
-                        setValues((c) => ({ ...c, amount: event.target.value }))
-                      }
+                      onChange={(event) => updateValue("amount", event.target.value)}
                       className="h-9 text-sm"
                     />
                     <FieldError message={fieldErrors.amount?.[0]} />
@@ -187,65 +303,19 @@ export function QuickAddTransactionModal({
                   <div className="space-y-1.5">
                     <Label htmlFor="transaction-date" className="text-xs text-muted">Transaction Date</Label>
                     <DatePicker
-                      value={values.happenedAt}
-                      onChange={(value) =>
-                        setValues((c) => ({ ...c, happenedAt: value }))
-                      }
+                      value={values.transactionDate}
+                      onChange={(value) => updateValue("transactionDate", value)}
                       className="h-9 text-sm"
                     />
-                    <FieldError message={fieldErrors.happenedAt?.[0]} />
-                  </div>
-                </div>
-
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="transaction-bank" className="text-xs text-muted">Bank</Label>
-                    <Select
-                      value={values.bankName}
-                      onValueChange={(value) =>
-                        setValues((c) => ({ ...c, bankName: value as CreateManualTransactionFormInput["bankName"] }))
-                      }
-                    >
-                      <SelectTrigger id="transaction-bank" className="h-9 text-sm">
-                        <SelectValue placeholder="Select bank" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {supportedBanks.map((bankName) => (
-                          <SelectItem key={bankName} value={bankName}>{bankName}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FieldError message={fieldErrors.bankName?.[0]} />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label htmlFor="transaction-category" className="text-xs text-muted">Category</Label>
-                    <Select
-                      value={values.category}
-                      onValueChange={(value) =>
-                        setValues((c) => ({ ...c, category: value as CreateManualTransactionFormInput["category"] }))
-                      }
-                    >
-                      <SelectTrigger id="transaction-category" className="h-9 text-sm">
-                        <SelectValue placeholder="Select category" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {transactionCategories.map((category) => (
-                          <SelectItem key={category} value={category}>
-                            {formatTransactionLabel(category)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FieldError message={fieldErrors.category?.[0]} />
+                    <FieldError message={fieldErrors.transactionDate?.[0]} />
                   </div>
 
                   <div className="space-y-1.5">
                     <Label htmlFor="transaction-status" className="text-xs text-muted">Status</Label>
                     <Select
-                      value={values.status}
+                      value={String(values.status ?? "confirmed")}
                       onValueChange={(value) =>
-                        setValues((c) => ({ ...c, status: value as CreateManualTransactionFormInput["status"] }))
+                        updateValue("status", value as CreateTransactionFormInput["status"])
                       }
                     >
                       <SelectTrigger id="transaction-status" className="h-9 text-sm">
@@ -262,25 +332,73 @@ export function QuickAddTransactionModal({
                     <FieldError message={fieldErrors.status?.[0]} />
                   </div>
                 </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {isTransfer ? (
+                    <>
+                      {accountSelector("fromAccountId", "From Account", fieldErrors.fromAccountId?.[0])}
+                      {accountSelector("toAccountId", "To Account", fieldErrors.toAccountId?.[0])}
+                    </>
+                  ) : (
+                    accountSelector("accountId", "Account", fieldErrors.accountId?.[0])
+                  )}
+                </div>
               </TransactionDialogSection>
 
               <TransactionDialogSection
-                title="Ledger Context"
-                description="Add merchant context, a ledger summary, and any notes needed for later reconciliation."
+                title="Details"
+                description="Keep labels concise so lists, dashboards, and imports stay easy to reconcile."
               >
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="space-y-1.5">
-                    <Label htmlFor="transaction-merchant" className="text-xs text-muted">Merchant</Label>
+                    <Label htmlFor="transaction-merchant" className="text-xs text-muted">Merchant / Title</Label>
                     <Input
                       id="transaction-merchant"
-                      value={values.merchant}
-                      onChange={(event) =>
-                        setValues((c) => ({ ...c, merchant: event.target.value }))
-                      }
-                      placeholder="Meralco, Grab, Cash Deposit"
+                      value={values.merchantName}
+                      onChange={(event) => {
+                        updateValue("merchantName", event.target.value);
+                        updateValue("merchant", event.target.value);
+                      }}
+                      placeholder="Meralco, Salary, Cash Correction"
                       className="h-9 text-sm"
                     />
-                    <FieldError message={fieldErrors.merchant?.[0]} />
+                    <FieldError message={fieldErrors.merchantName?.[0] ?? fieldErrors.merchant?.[0]} />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="transaction-category" className="text-xs text-muted">Category</Label>
+                    <Select
+                      value={values.category}
+                      onValueChange={(value) =>
+                        updateValue("category", value as CreateTransactionFormInput["category"])
+                      }
+                    >
+                      <SelectTrigger id="transaction-category" className="h-9 text-sm">
+                        <SelectValue placeholder="Select category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {transactionCategories.map((category) => (
+                          <SelectItem key={category} value={category}>
+                            {formatTransactionLabel(category)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FieldError message={fieldErrors.category?.[0]} />
+                  </div>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="transaction-description" className="text-xs text-muted">Description</Label>
+                    <Input
+                      id="transaction-description"
+                      value={values.description ?? ""}
+                      onChange={(event) => updateValue("description", event.target.value)}
+                      placeholder="Optional ledger summary"
+                      className="h-9 text-sm"
+                    />
+                    <FieldError message={fieldErrors.description?.[0]} />
                   </div>
 
                   <div className="space-y-1.5">
@@ -288,9 +406,7 @@ export function QuickAddTransactionModal({
                     <Input
                       id="transaction-reference"
                       value={values.referenceNumber ?? ""}
-                      onChange={(event) =>
-                        setValues((c) => ({ ...c, referenceNumber: event.target.value }))
-                      }
+                      onChange={(event) => updateValue("referenceNumber", event.target.value)}
                       placeholder="Optional"
                       className="h-9 text-sm"
                     />
@@ -299,28 +415,14 @@ export function QuickAddTransactionModal({
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label htmlFor="transaction-description" className="text-xs text-muted">Description</Label>
-                  <Input
-                    id="transaction-description"
-                    value={values.description}
-                    onChange={(event) =>
-                      setValues((c) => ({ ...c, description: event.target.value }))
-                    }
-                    placeholder="Short summary for the ledger"
-                    className="h-9 text-sm"
-                  />
-                  <FieldError message={fieldErrors.description?.[0]} />
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label htmlFor="transaction-notes" className="text-xs text-muted">Notes</Label>
+                  <Label htmlFor="transaction-notes" className="text-xs text-muted">
+                    Notes{isAdjustment ? " (required for adjustments)" : ""}
+                  </Label>
                   <Textarea
                     id="transaction-notes"
                     value={values.notes ?? ""}
-                    onChange={(event) =>
-                      setValues((c) => ({ ...c, notes: event.target.value }))
-                    }
-                    placeholder="Optional context for future reconciliation"
+                    onChange={(event) => updateValue("notes", event.target.value)}
+                    placeholder={isAdjustment ? "Reason for the balance correction" : "Optional context for future reconciliation"}
                     rows={3}
                     className="w-full resize-none text-sm"
                   />
@@ -344,7 +446,7 @@ export function QuickAddTransactionModal({
                   Cancel
                 </Button>
                 <Button type="submit" className="w-full sm:w-auto" disabled={isPending}>
-                  {isPending ? "Saving..." : "Save Transaction"}
+                  {isPending ? "Saving..." : mode === "edit" ? "Save Changes" : "Save Transaction"}
                 </Button>
               </div>
             </div>

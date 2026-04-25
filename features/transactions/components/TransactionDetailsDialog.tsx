@@ -27,6 +27,7 @@ type TransactionDetailsDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onEditTransaction?: (transaction: Transaction) => void;
+  onDeleteTransaction?: (transaction: Transaction) => void;
 };
 
 type DetailFieldProps = {
@@ -51,6 +52,29 @@ function formatTimestamp(value: string) {
   }).format(new Date(value));
 }
 
+function formatSourceMetadataSummary(metadata?: Record<string, unknown> | null) {
+  if (!metadata || Object.keys(metadata).length === 0) {
+    return "Not available";
+  }
+
+  const keys = Object.keys(metadata);
+  const provider = typeof metadata.provider === "string" ? metadata.provider : null;
+  const bankName = typeof metadata.bankName === "string" ? metadata.bankName : null;
+  const summaryPrefix = provider ?? bankName;
+
+  return summaryPrefix
+    ? `${summaryPrefix} metadata captured (${keys.length} fields)`
+    : `Metadata captured (${keys.length} fields)`;
+}
+
+function amountClassName(transaction: Transaction) {
+  if (transaction.type === "transfer" || transaction.type === "adjustment") {
+    return "text-foreground";
+  }
+
+  return transaction.signedAmount >= 0 ? "text-primary" : "text-error";
+}
+
 function DetailField({ label, value, className, valueClassName }: DetailFieldProps) {
   return (
     <div
@@ -70,6 +94,7 @@ export function TransactionDetailsDialog({
   open,
   onOpenChange,
   onEditTransaction,
+  onDeleteTransaction,
 }: TransactionDetailsDialogProps) {
   if (!transaction) {
     return null;
@@ -101,10 +126,10 @@ export function TransactionDetailsDialog({
               <p
                 className={cn(
                   "financial-figure mt-1 text-2xl font-bold sm:text-[2rem]",
-                  transaction.signedAmount >= 0 ? "text-primary" : "text-error"
+                  amountClassName(transaction)
                 )}
               >
-                {formatCurrency(transaction.signedAmount, transaction.currencyCode)}
+              {formatCurrency(transaction.signedAmount, transaction.currencyCode)}
               </p>
             </div>
           </div>
@@ -115,9 +140,9 @@ export function TransactionDetailsDialog({
                 label: "Booked On",
                 value: formatDatePickerLabel(transaction.happenedAt.slice(0, 10)),
               },
-              { label: "Source Bank", value: transaction.bankName },
+              { label: "Account", value: transaction.accountName ?? transaction.bankName },
               { label: "Status", value: formatTransactionLabel(transaction.status) },
-              { label: "Direction", value: transaction.kindLabel },
+              { label: "Type", value: transaction.kindLabel },
             ]}
           />
         </TransactionDialogHeaderFrame>
@@ -132,6 +157,11 @@ export function TransactionDetailsDialog({
                 <DetailField label="Merchant" value={transaction.merchant} />
                 <DetailField label="Category" value={transaction.categoryLabel} />
                 <DetailField label="Description" value={transaction.description} className="sm:col-span-2" />
+                <DetailField label="Type" value={formatTransactionLabel(transaction.type)} />
+                <DetailField label="Status" value={formatTransactionLabel(transaction.status)} />
+                <DetailField label="Account" value={formatOptionalValue(transaction.accountName)} />
+                <DetailField label="From Account" value={formatOptionalValue(transaction.fromAccountName)} />
+                <DetailField label="To Account" value={formatOptionalValue(transaction.toAccountName)} />
                 <DetailField label="Reference Number" value={formatOptionalValue(transaction.referenceNumber)} />
                 <DetailField label="Notes" value={formatOptionalValue(transaction.notes, "No notes added")} />
               </div>
@@ -145,9 +175,16 @@ export function TransactionDetailsDialog({
                 <DetailField label="Record ID" value={transaction.id} />
                 <DetailField label="Currency" value={transaction.currencyCode} />
                 <DetailField label="Status" value={formatTransactionLabel(transaction.status)} />
-                <DetailField label="Direction" value={transaction.kindLabel} />
+                <DetailField label="Type" value={transaction.kindLabel} />
                 <DetailField label="Source" value={formatTransactionLabel(transaction.source)} />
-                <DetailField label="Bank" value={transaction.bankName} />
+                <DetailField label="Source ID" value={formatOptionalValue(transaction.sourceId)} />
+                <DetailField label="Source Metadata" value={formatSourceMetadataSummary(transaction.sourceMetadata)} />
+                <DetailField
+                  label="Original Transaction"
+                  value={formatOptionalValue(transaction.originalTransactionId)}
+                />
+                <DetailField label="Account Source" value={transaction.bankName} />
+                <DetailField label="Transaction Date" value={formatTimestamp(transaction.transactionDate)} />
                 <DetailField label="Created At" value={formatTimestamp(transaction.createdAt)} />
                 <DetailField label="Last Updated" value={formatTimestamp(transaction.updatedAt)} />
               </div>
@@ -169,7 +206,20 @@ export function TransactionDetailsDialog({
                   onEditTransaction(transaction);
                 }}
               >
-                Edit Labels
+                Edit
+              </Button>
+            ) : null}
+            {onDeleteTransaction ? (
+              <Button
+                type="button"
+                variant="destructive"
+                className="w-full sm:w-auto"
+                onClick={() => {
+                  onOpenChange(false);
+                  onDeleteTransaction(transaction);
+                }}
+              >
+                Delete
               </Button>
             ) : null}
           </div>

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { KeyboardEvent, MouseEvent, ReactNode } from "react";
-import { Pencil } from "lucide-react";
+import { Eye, Pencil, Trash2 } from "lucide-react";
 
 import { BankAvatar } from "@/components/bank-avatar";
 import { Badge } from "@/components/ui/badge";
@@ -25,17 +25,35 @@ type TransactionTableProps = {
   pagination?: TransactionListPagination | null;
   onPageChange?: (page: number) => void;
   onEditTransaction?: (transaction: Transaction) => void;
+  onDeleteTransaction?: (transaction: Transaction) => void;
 };
 
 const desktopTransactionTableColumns =
-  "0.9fr 1.15fr 1.9fr 1fr 1fr 0.9fr";
+  "0.85fr 1.15fr 1.7fr 0.95fr 0.8fr 0.9fr 0.8fr 0.95fr";
 const desktopTransactionTableColumnsWithActions =
-  "0.9fr 1.15fr 1.9fr 1fr 1fr 0.9fr 0.8fr";
+  "0.85fr 1.15fr 1.7fr 0.95fr 0.8fr 0.9fr 0.8fr 0.95fr 1fr";
 
 function statusVariant(status: Transaction["status"]) {
-  if (status === "completed") return "success";
+  if (status === "confirmed") return "success";
   if (status === "pending") return "warning";
+  if (status === "needs_review") return "warning";
+  if (status === "duplicate") return "default";
   return "error";
+}
+
+function typeVariant(type: Transaction["type"]) {
+  if (type === "income" || type === "refund") return "success";
+  if (type === "expense") return "error";
+  if (type === "adjustment") return "warning";
+  return "info";
+}
+
+function amountClassName(transaction: Transaction) {
+  if (transaction.type === "transfer" || transaction.type === "adjustment") {
+    return "text-foreground";
+  }
+
+  return transaction.signedAmount >= 0 ? "text-primary" : "text-error";
 }
 
 function formatTransactionTime(value: string) {
@@ -54,9 +72,11 @@ export function TransactionTable({
   pagination,
   onPageChange,
   onEditTransaction,
+  onDeleteTransaction,
 }: TransactionTableProps) {
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
-  const desktopGridTemplate = onEditTransaction
+  const hasActions = Boolean(onEditTransaction || onDeleteTransaction);
+  const desktopGridTemplate = hasActions
     ? desktopTransactionTableColumnsWithActions
     : desktopTransactionTableColumns;
   const pageStart = pagination
@@ -105,12 +125,14 @@ export function TransactionTable({
                   style={{ gridTemplateColumns: desktopGridTemplate }}
                 >
                   <div className="whitespace-nowrap text-left">Date</div>
-                  <div className="whitespace-nowrap text-left">Bank</div>
-                  <div className="whitespace-nowrap text-left">Description</div>
+                  <div className="whitespace-nowrap text-left">Account</div>
+                  <div className="whitespace-nowrap text-left">Merchant</div>
                   <div className="whitespace-nowrap text-left">Category</div>
-                  <div className="whitespace-nowrap text-left">Amount</div>
+                  <div className="whitespace-nowrap text-left">Type</div>
                   <div className="whitespace-nowrap text-left">Status</div>
-                  {onEditTransaction ? <div className="whitespace-nowrap text-left"></div> : null}
+                  <div className="whitespace-nowrap text-left">Source</div>
+                  <div className="whitespace-nowrap text-left">Amount</div>
+                  {hasActions ? <div className="whitespace-nowrap text-left"></div> : null}
                 </div>
 
                 <div className="divide-y divide-border">
@@ -158,7 +180,8 @@ export function TransactionTable({
                           <Skeleton className="h-4 w-20 rounded-md" />
                           <Skeleton className="h-4 w-20 rounded-md" />
                           <Skeleton className="h-6 w-16 rounded-full" />
-                          {onEditTransaction ? <Skeleton className="h-8 w-16 rounded-md" /> : null}
+                          <Skeleton className="h-4 w-24 rounded-md" />
+                          {hasActions ? <Skeleton className="h-8 w-24 rounded-md" /> : null}
                         </div>
                       </div>
                     ))
@@ -206,7 +229,7 @@ export function TransactionTable({
                                 {transaction.merchant}
                               </div>
                               <div className="truncate text-xs text-muted">
-                                {transaction.bankName}
+                                {transaction.accountName ?? transaction.bankName}
                               </div>
                             </div>
                           </div>
@@ -214,7 +237,7 @@ export function TransactionTable({
                             <div className="min-w-0">
                               <div className="truncate text-xs text-muted">
                                 {transaction.description}
-                                {transaction.referenceNumber ? ` • Ref ${transaction.referenceNumber}` : ""}
+                                {transaction.referenceNumber ? ` - Ref ${transaction.referenceNumber}` : ""}
                               </div>
                               <div className="pt-1 text-sm text-muted">
                                 {transaction.categoryLabel}
@@ -223,14 +246,36 @@ export function TransactionTable({
                             <div
                               className={cn(
                                 "financial-figure shrink-0 text-sm font-semibold",
-                                transaction.signedAmount >= 0 ? "text-primary" : "text-error"
+                                amountClassName(transaction)
                               )}
                             >
                               {formatCurrency(transaction.signedAmount, transaction.currencyCode)}
                             </div>
                           </div>
-                          {onEditTransaction ? (
-                            <div className="flex justify-end">
+                          <div className="flex flex-wrap justify-end gap-2">
+                            <Badge variant={typeVariant(transaction.type)}>
+                              {formatTransactionLabel(transaction.type)}
+                            </Badge>
+                            <Badge variant="info">
+                              {formatTransactionLabel(transaction.source)}
+                            </Badge>
+                          </div>
+                          {hasActions ? (
+                            <div className="flex justify-end gap-1">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 px-2 text-xs font-semibold"
+                                onClick={(event) => {
+                                  stopRowSelection(event);
+                                  openTransactionDetails(transaction);
+                                }}
+                              >
+                                <Eye className="h-3.5 w-3.5" />
+                                View
+                              </Button>
+                              {onEditTransaction ? (
                               <Button
                                 type="button"
                                 variant="ghost"
@@ -244,6 +289,22 @@ export function TransactionTable({
                                 <Pencil className="h-3.5 w-3.5" />
                                 Edit
                               </Button>
+                              ) : null}
+                              {onDeleteTransaction ? (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 px-2 text-xs font-semibold text-error hover:text-error"
+                                  onClick={(event) => {
+                                    stopRowSelection(event);
+                                    onDeleteTransaction(transaction);
+                                  }}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                  Delete
+                                </Button>
+                              ) : null}
                             </div>
                           ) : null}
                         </div>
@@ -260,7 +321,11 @@ export function TransactionTable({
 
                           <div className="hidden min-w-0 items-center gap-3 md:flex">
                             <BankAvatar name={transaction.bankName} initials={transaction.bankInitials} />
-                            <span className="truncate text-sm text-foreground">{transaction.bankName}</span>
+                            <span className="truncate text-sm text-foreground">
+                              {transaction.type === "transfer"
+                                ? `${transaction.fromAccountName ?? "From account"} to ${transaction.toAccountName ?? "To account"}`
+                                : transaction.accountName ?? transaction.bankName}
+                            </span>
                           </div>
 
                           <div className="hidden min-w-0 md:block">
@@ -269,7 +334,7 @@ export function TransactionTable({
                             </div>
                             <div className="truncate text-xs text-muted">
                               {transaction.description}
-                              {transaction.referenceNumber ? ` • Ref ${transaction.referenceNumber}` : ""}
+                              {transaction.referenceNumber ? ` - Ref ${transaction.referenceNumber}` : ""}
                             </div>
                           </div>
 
@@ -277,13 +342,10 @@ export function TransactionTable({
                             {transaction.categoryLabel}
                           </div>
 
-                          <div
-                            className={cn(
-                              "hidden financial-figure text-left text-sm font-semibold md:block",
-                              transaction.signedAmount >= 0 ? "text-primary" : "text-error"
-                            )}
-                          >
-                            {formatCurrency(transaction.signedAmount, transaction.currencyCode)}
+                          <div className="hidden text-left md:block">
+                            <Badge variant={typeVariant(transaction.type)}>
+                              {formatTransactionLabel(transaction.type)}
+                            </Badge>
                           </div>
 
                           <div className="hidden text-left md:block">
@@ -292,8 +354,23 @@ export function TransactionTable({
                             </Badge>
                           </div>
 
-                          {onEditTransaction ? (
-                            <div className="hidden text-left md:block">
+                          <div className="hidden text-left md:block">
+                            <Badge variant="info">
+                              {formatTransactionLabel(transaction.source)}
+                            </Badge>
+                          </div>
+
+                          <div
+                            className={cn(
+                              "hidden financial-figure text-left text-sm font-semibold md:block",
+                              amountClassName(transaction)
+                            )}
+                          >
+                            {formatCurrency(transaction.signedAmount, transaction.currencyCode)}
+                          </div>
+
+                          {hasActions ? (
+                            <div className="hidden text-left md:flex md:items-center md:gap-1">
                               <Button
                                 type="button"
                                 variant="ghost"
@@ -301,12 +378,42 @@ export function TransactionTable({
                                 className="h-8 px-2 text-xs font-semibold"
                                 onClick={(event) => {
                                   stopRowSelection(event);
-                                  onEditTransaction(transaction);
+                                  openTransactionDetails(transaction);
                                 }}
+                                aria-label="View transaction"
                               >
-                                <Pencil className="h-3.5 w-3.5" />
-                                Edit
+                                <Eye className="h-3.5 w-3.5" />
                               </Button>
+                              {onEditTransaction ? (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 px-2 text-xs font-semibold"
+                                  onClick={(event) => {
+                                    stopRowSelection(event);
+                                    onEditTransaction(transaction);
+                                  }}
+                                  aria-label="Edit transaction"
+                                >
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </Button>
+                              ) : null}
+                              {onDeleteTransaction ? (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 px-2 text-xs font-semibold text-error hover:text-error"
+                                  onClick={(event) => {
+                                    stopRowSelection(event);
+                                    onDeleteTransaction(transaction);
+                                  }}
+                                  aria-label="Delete transaction"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              ) : null}
                             </div>
                           ) : null}
                         </>
@@ -363,6 +470,7 @@ export function TransactionTable({
           }
         }}
         onEditTransaction={onEditTransaction}
+        onDeleteTransaction={onDeleteTransaction}
       />
     </>
   );

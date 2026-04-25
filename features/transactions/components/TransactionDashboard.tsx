@@ -87,7 +87,12 @@ export function TransactionDashboard() {
     isSyncingGmail,
     isCommittingGmailReview,
   } = useTransactions();
-  const { summary: netWorthSummary, isPending: isAccountsPending } = useFinancialAccounts();
+  const {
+    accounts,
+    summary: netWorthSummary,
+    isPending: isAccountsPending,
+    reloadAccounts,
+  } = useFinancialAccounts();
   const periodLabel = formatOverviewPeriodLabel(period);
   const summaryCards = [
     summaryCardKeys[0],
@@ -123,9 +128,11 @@ export function TransactionDashboard() {
               </TabsList>
             </Tabs>
             <QuickAddTransactionModal
+              accounts={accounts}
               onSubmit={async (input) => {
                 await createTransaction(input);
                 reloadOverview();
+                reloadAccounts();
               }}
             />
           </div>

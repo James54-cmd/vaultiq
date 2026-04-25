@@ -47,8 +47,10 @@ const desktopReviewTableColumns =
   "0.9fr 1.15fr 1.1fr 1.9fr 1fr 0.9fr 0.95fr";
 
 function statusVariant(status: GmailTransactionReviewItem["status"]) {
-  if (status === "completed") return "success";
+  if (status === "confirmed") return "success";
   if (status === "pending") return "warning";
+  if (status === "needs_review") return "warning";
+  if (status === "duplicate") return "default";
   return "error";
 }
 
@@ -199,7 +201,7 @@ export function GmailTransactionReviewDialog({
                                 <div className="min-w-0">
                                   <div className="truncate text-xs text-muted">
                                     {item.description}
-                                    {item.referenceNumber ? ` • Ref ${item.referenceNumber}` : ""}
+                                    {item.referenceNumber ? ` - Ref ${item.referenceNumber}` : ""}
                                   </div>
                                   <div className="pt-1 text-sm text-muted">
                                     {item.categoryLabel}
@@ -252,7 +254,7 @@ export function GmailTransactionReviewDialog({
                                 </div>
                                 <div className="truncate text-xs text-muted">
                                   {item.description}
-                                  {item.referenceNumber ? ` • Ref ${item.referenceNumber}` : ""}
+                                  {item.referenceNumber ? ` - Ref ${item.referenceNumber}` : ""}
                                 </div>
                               </div>
 

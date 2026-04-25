@@ -4,7 +4,7 @@ import { buildSchema, graphql } from "graphql";
 
 import { requireAuthenticatedUser } from "@/features/auth/services/auth-session.service";
 import {
-  createManualTransaction,
+  createTransaction,
   getTransactionOverview,
   listTransactions,
   syncGmailTransactions,
@@ -15,6 +15,17 @@ const transactionGraphqlSchema = buildSchema(`
   enum TransactionSource {
     manual
     gmail
+    csv
+    bank_import
+    system
+  }
+
+  enum TransactionType {
+    income
+    expense
+    transfer
+    adjustment
+    refund
   }
 
   enum TransactionDirection {
@@ -24,9 +35,11 @@ const transactionGraphqlSchema = buildSchema(`
   }
 
   enum TransactionStatus {
-    completed
+    confirmed
     pending
-    flagged
+    declined
+    duplicate
+    needs_review
   }
 
   enum TransactionOverviewPeriod {
@@ -54,45 +67,25 @@ const transactionGraphqlSchema = buildSchema(`
     uncategorized
   }
 
-  enum SupportedBank {
-    BDO
-    BPI
-    UnionBank
-    Metrobank
-    Security_Bank
-    Landbank
-    PNB
-    EastWest_Bank
-    RCBC
-    Chinabank
-    PSBank
-    AUB
-    GCash
-    Maya
-    Atome
-    ShopeePay
-    Coins_ph
-    Tonik
-    GoTyme
-    SeaBank
-    MariBank
-    OwnBank
-    CIMB
-    ING_Philippines
-    Wise
-    Payoneer
-    Revolut
-  }
-
   type Transaction {
     id: ID!
     source: TransactionSource!
+    sourceId: String
+    type: TransactionType!
     direction: TransactionDirection!
     amount: Float!
     signedAmount: Float!
     currencyCode: String!
+    accountId: ID
+    accountName: String
+    fromAccountId: ID
+    fromAccountName: String
+    toAccountId: ID
+    toAccountName: String
+    originalTransactionId: ID
     bankName: String!
     bankInitials: String!
+    merchantName: String!
     merchant: String!
     description: String!
     category: TransactionCategory!
@@ -101,6 +94,7 @@ const transactionGraphqlSchema = buildSchema(`
     notes: String
     status: TransactionStatus!
     kindLabel: String!
+    transactionDate: String!
     happenedAt: String!
     createdAt: String!
     updatedAt: String!
@@ -146,18 +140,23 @@ const transactionGraphqlSchema = buildSchema(`
     reason: String!
   }
 
-  input CreateManualTransactionInput {
-    direction: TransactionDirection!
+  input CreateTransactionInput {
+    type: TransactionType!
     amount: Float!
     currencyCode: String
-    bankName: String!
-    merchant: String!
-    description: String!
-    category: TransactionCategory!
+    accountId: ID
+    fromAccountId: ID
+    toAccountId: ID
+    originalTransactionId: ID
+    merchantName: String!
+    description: String
+    category: TransactionCategory
     referenceNumber: String
     notes: String
     status: TransactionStatus
-    happenedAt: String!
+    source: TransactionSource
+    sourceId: String
+    transactionDate: String!
   }
 
   input GmailSyncInput {
@@ -172,7 +171,9 @@ const transactionGraphqlSchema = buildSchema(`
     transactions(
       bankName: String
       category: TransactionCategory
-      direction: TransactionDirection
+      type: TransactionType
+      direction: TransactionType
+      source: TransactionSource
       status: TransactionStatus
       search: String
     ): [Transaction!]!
@@ -180,7 +181,8 @@ const transactionGraphqlSchema = buildSchema(`
   }
 
   type Mutation {
-    createManualTransaction(input: CreateManualTransactionInput!): Transaction!
+    createTransaction(input: CreateTransactionInput!): Transaction!
+    createManualTransaction(input: CreateTransactionInput!): Transaction!
     syncGmailTransactions(input: GmailSyncInput): GmailSyncResult!
   }
 `);
@@ -198,8 +200,21 @@ const rootValue = {
 
     return getTransactionOverview(supabase, args);
   },
-  createManualTransaction: async ({ input }: { input: Record<string, unknown> }) =>
-    createManualTransaction(await getSupabaseSessionServerClient(), input),
+  createTransaction: async ({ input }: { input: Record<string, unknown> }) => {
+    const supabase = await getSupabaseSessionServerClient();
+    await requireAuthenticatedUser(supabase);
+
+    return createTransaction(supabase, input);
+  },
+  createManualTransaction: async ({ input }: { input: Record<string, unknown> }) => {
+    const supabase = await getSupabaseSessionServerClient();
+    await requireAuthenticatedUser(supabase);
+
+    return createTransaction(supabase, {
+      ...input,
+      source: "manual",
+    });
+  },
   syncGmailTransactions: async ({ input }: { input?: Record<string, unknown> }) => {
     const supabase = await getSupabaseSessionServerClient();
     const user = await requireAuthenticatedUser(supabase);
